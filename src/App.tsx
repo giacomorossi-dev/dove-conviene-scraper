@@ -5,6 +5,7 @@ import type { ProductQuery } from "./components/ProductsChipsInput";
 import Wizard from "./components/Wizard";
 import ListsView from "./components/ListsView";
 import Topbar, { type View } from "./components/Topbar";
+import Footer from "./components/Footer";
 import PresetNameDialog from "./components/PresetNameDialog";
 import PresetDeleteDialog from "./components/PresetDeleteDialog";
 import ListEditDialog from "./components/ListEditDialog";
@@ -382,6 +383,8 @@ const App = () => {
           )}
         </div>
       </main>
+
+      <Footer />
 
       <PresetNameDialog
         open={createOpen}
