@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Accordion,
@@ -29,11 +28,6 @@ interface Props {
   products: ProductQuery[];
   onProductsChange: (next: ProductQuery[]) => void;
   results: FlyerI[];
-  loading: boolean;
-  onRun: () => void;
-  presetDirty: boolean;
-  onUpdatePreset: () => void;
-  onResetPreset: () => void;
   lists: List[];
   onAddToList: (listId: string, row: RowData) => void;
   onRequestNewList: (row: RowData) => void;
@@ -50,11 +44,6 @@ const Wizard = ({
   products,
   onProductsChange,
   results,
-  loading,
-  onRun,
-  presetDirty,
-  onUpdatePreset,
-  onResetPreset,
   lists,
   onAddToList,
   onRequestNewList,
@@ -180,27 +169,6 @@ const Wizard = ({
           />
         </CardContent>
       </Card>
-
-      <div className="flex flex-wrap items-center gap-2 pt-2">
-        <Button
-          disabled={loading}
-          className="flex gap-2 items-center"
-          onClick={onRun}
-        >
-          <span>Run</span>
-          {loading && <Spinner />}
-        </Button>
-        {presetDirty && (
-          <>
-            <Button variant="outline" onClick={onUpdatePreset}>
-              Aggiorna preset
-            </Button>
-            <Button variant="ghost" onClick={onResetPreset}>
-              Reimposta preset
-            </Button>
-          </>
-        )}
-      </div>
     </div>
   );
 };

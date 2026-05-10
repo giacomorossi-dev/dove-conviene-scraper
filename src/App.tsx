@@ -5,6 +5,7 @@ import type { ProductQuery } from "./components/ProductsChipsInput";
 import Wizard from "./components/Wizard";
 import ListsView from "./components/ListsView";
 import Topbar, { type View } from "./components/Topbar";
+import Bottombar from "./components/Bottombar";
 import Footer from "./components/Footer";
 import PresetNameDialog from "./components/PresetNameDialog";
 import PresetDeleteDialog from "./components/PresetDeleteDialog";
@@ -324,18 +325,8 @@ const App = () => {
 
   return (
     <>
-      <Topbar
-        presets={presets}
-        activeId={activeId}
-        view={view}
-        onChangeView={setView}
-        onSelectPreset={onSelectPreset}
-        onRequestCreate={onRequestCreate}
-        onRequestRename={(id) => setRenameTarget(id)}
-        onRequestDuplicate={onRequestDuplicate}
-        onRequestDelete={(id) => setDeleteTarget(id)}
-      />
-      <main className="pt-28 pb-10">
+      <Topbar view={view} onChangeView={setView} />
+      <main className="pt-20 pb-24">
         <div className="container">
           {view === "lists" ? (
             <ListsView
@@ -368,11 +359,6 @@ const App = () => {
               products={products}
               onProductsChange={setProducts}
               results={results}
-              loading={loading}
-              onRun={onRun}
-              presetDirty={!!active && dirty}
-              onUpdatePreset={onUpdateActive}
-              onResetPreset={onResetToActive}
               lists={lists}
               onAddToList={onAddToList}
               onRequestNewList={onRequestNewList}
@@ -385,6 +371,22 @@ const App = () => {
       </main>
 
       <Footer />
+
+      <Bottombar
+        view={view}
+        presets={presets}
+        activeId={activeId}
+        onSelectPreset={onSelectPreset}
+        onRequestRename={(id) => setRenameTarget(id)}
+        onRequestDuplicate={onRequestDuplicate}
+        onRequestDelete={(id) => setDeleteTarget(id)}
+        onRequestCreate={onRequestCreate}
+        loading={loading}
+        onRun={onRun}
+        dirty={!!active && dirty}
+        onUpdatePreset={onUpdateActive}
+        onResetPreset={onResetToActive}
+      />
 
       <PresetNameDialog
         open={createOpen}
