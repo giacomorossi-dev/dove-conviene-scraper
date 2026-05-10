@@ -1,4 +1,4 @@
-import doveConvieneLogo from "/dove-conviene.png";
+import Logo from "./Logo";
 import { cn } from "@/lib/utils";
 
 export type View = "main" | "lists";
@@ -11,9 +11,7 @@ interface Props {
 const Topbar = ({ view, onChangeView }: Props) => (
   <header className="fixed top-0 inset-x-0 z-40 bg-background border-b shadow-sm">
     <div className="container flex items-center gap-6 py-3">
-      <div className="max-w-50 shrink-0">
-        <img src={doveConvieneLogo} alt="DoveConviene" />
-      </div>
+      <Logo className="h-8 w-auto shrink-0" />
       <nav className="flex gap-1">
         <button
           type="button"

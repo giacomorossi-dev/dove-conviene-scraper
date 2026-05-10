@@ -1,11 +1,9 @@
-import doveConvieneLogo from "/dove-conviene.png";
+import Logo from "./Logo";
 
 const Footer = () => (
   <footer className="w-full bg-muted py-20">
     <div className="container max-w-3xl mx-auto text-center space-y-6">
-      <div className="max-w-40 mx-auto">
-        <img src={doveConvieneLogo} alt="DoveConviene" />
-      </div>
+      <Logo className="h-12 w-auto mx-auto" />
       <p className="text-sm text-muted-foreground leading-relaxed">
         Trova le offerte dei volantini italiani senza aprire decine di PDF.
         Inserisci la tua città, scegli i volantini delle catene preferite e i
