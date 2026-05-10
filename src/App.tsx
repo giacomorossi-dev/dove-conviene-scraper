@@ -123,14 +123,37 @@ const App = () => {
 
   const onRun = async () => {
     setLoading(true);
-    const res = await fetch("/api/scraper", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ city: citySlug || city, flyers, products }),
-    });
-    const data = await res.json();
-    setResults(data.flyers);
-    setLoading(false);
+    setResults([]);
+    try {
+      const res = await fetch("/api/scraper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city: citySlug || city, flyers, products }),
+      });
+      if (!res.ok || !res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const msg = JSON.parse(line) as { flyer?: FlyerI };
+            if (msg.flyer) setResults((prev) => [...prev, msg.flyer!]);
+          } catch {
+            /* skip malformed line */
+          }
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onToggleFlyer = (flyer: FlyerI) => {

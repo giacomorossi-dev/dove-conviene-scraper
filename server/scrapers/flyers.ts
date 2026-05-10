@@ -153,11 +153,11 @@ async function getFlyerData(
   return { products, validUntil };
 }
 
-export async function scrapeFlyers(
+export async function* scrapeFlyersStream(
   location: string,
   flyers: Flyer[],
   products: ProductQuery[]
-): Promise<Flyer[]> {
+): AsyncGenerator<Flyer> {
   const citySlug = slugify(location);
   const queries: NormalizedQuery[] = products
     .map((p) => ({ name: normalize(p.name), maxPrice: p.maxPrice }))
@@ -183,7 +183,6 @@ export async function scrapeFlyers(
     const { products: ps, validUntil } = await getFlyerData(flyer, queries);
     flyer.products = ps;
     if (validUntil) flyer.validUntil = validUntil;
+    yield flyer;
   }
-
-  return matched;
 }
