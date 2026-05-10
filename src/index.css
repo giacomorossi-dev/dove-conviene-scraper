@@ -122,6 +122,6 @@
   }
 
   .container {
-    @apply px-4;
+    @apply px-4 m-auto;
   }
 }
