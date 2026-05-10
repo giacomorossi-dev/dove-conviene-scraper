@@ -1,35 +1,61 @@
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Flyer as FlyerI } from "@/models";
+import type { Category } from "@/categories";
 
-type Props = FlyerI & { onClick: () => void; className?: string };
+export interface Product {
+  name: string;
+  imageUrl: string | null;
+  price: number | null;
+}
 
-const Flyer: React.FC<Props> = ({
+export interface Flyer {
+  name: string;
+  imageUrl: string;
+  category: Category;
+  url?: string;
+  validUntil?: string;
+  products?: Product[];
+}
+
+interface Props extends Flyer {
+  onClick: () => void;
+  className?: string;
+  selected?: boolean;
+}
+
+const Flyer = ({
   name,
   imageUrl,
   url,
   onClick,
   className,
-}) => {
-  const _onClick = () => {
-    if (url) {
-      window.open(url, "_blank");
-    } else {
-      onClick();
-    }
+  selected = false,
+}: Props) => {
+  const handleClick = () => {
+    if (url) window.open(url, "_blank");
+    else onClick();
   };
 
   return (
     <div
-      onClick={() => _onClick()}
+      onClick={handleClick}
+      title={name}
       className={cn(
-        "w-32 h-32 relative flex flex-col justify-center  cursor-pointer p-4 rounded-md border-2 border-gray-400",
+        "w-16 h-16 relative flex flex-col justify-center cursor-pointer p-2 rounded-md border-2 transition-colors",
+        selected ? "border-green-600" : "border-gray-300",
         className
       )}
     >
-      <img className=" " src={imageUrl} alt={name} />
-      <h6 className="hidden text-center absolute bottom-2 left-4 right-4">
-        {name}
-      </h6>
+      <img
+        className="w-full h-full object-contain"
+        src={imageUrl}
+        alt={name}
+      />
+      {selected && (
+        <span className="absolute top-0.5 right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white shadow">
+          <Check className="w-3 h-3" strokeWidth={3} />
+        </span>
+      )}
     </div>
   );
 };

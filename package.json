@@ -4,28 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev:server": "tsx watch server/index.ts",
+    "dev:server": "bun --watch server/index.ts",
     "dev:client": "vite",
-    "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@radix-ui/react-accordion": "^1.2.12",
-    "@radix-ui/react-label": "^2.1.8",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@radix-ui/react-toggle": "^1.1.10",
-    "@radix-ui/react-toggle-group": "^1.1.11",
     "@tailwindcss/vite": "^4.1.18",
-    "@tanstack/react-table": "^8.21.3",
-    "@types/express": "^5.0.6",
+    "cheerio": "^1.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
     "express": "^5.2.1",
     "lucide-react": "^0.562.0",
-    "playwright": "^1.57.0",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.4.0",
@@ -33,7 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/node": "^24.10.1",
+    "@types/bun": "^1.3.0",
+    "@types/express": "^5.0.6",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.2.2",
@@ -45,5 +40,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
-  }
+  },
+  "trustedDependencies": [
+    "@swc/core"
+  ]
 }

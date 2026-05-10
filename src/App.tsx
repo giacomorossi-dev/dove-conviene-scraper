@@ -1,154 +1,453 @@
-import { useState } from "react";
-import doveConvieneLogo from "/dove-conviene.png";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
-import { Button } from "./components/ui/button";
-import { CATEGORIES, FLYERS, type Flyer as FlyerI } from "./models";
-import { Spinner } from "./components/ui/spinner";
+import { useEffect, useState } from "react";
+import { CATEGORIES } from "./categories";
+import type { Flyer as FlyerI } from "./components/Flyer";
+import type { ProductQuery } from "./components/ProductsChipsInput";
+import Wizard from "./components/Wizard";
+import ListsView from "./components/ListsView";
+import Topbar, { type View } from "./components/Topbar";
+import PresetNameDialog from "./components/PresetNameDialog";
+import PresetDeleteDialog from "./components/PresetDeleteDialog";
+import ListEditDialog from "./components/ListEditDialog";
+import ConfirmDialog from "./components/ConfirmDialog";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "./components/ui/accordion";
-import Flyer from "./components/Flyer";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { cn } from "./lib/utils";
-import ProductsInputList from "./components/ProductsInputList";
-// import Products from "./components/Products";
+  loadPresets,
+  savePresets,
+  loadActivePresetId,
+  saveActivePresetId,
+  createPreset,
+  isPresetDirty,
+  DEFAULT_PRESET_NAME,
+  type Preset,
+} from "./lib/presets";
+import {
+  loadLists,
+  saveLists,
+  createList,
+  makeSavedItem,
+  itemKey,
+  isExpired,
+  type List,
+  type RowData,
+} from "./lib/lists";
+
+const initialPresets = loadPresets();
+const initialActiveId = loadActivePresetId();
+const initialActive =
+  initialPresets.find((p) => p.id === initialActiveId) ?? null;
+
+const slugOf = (c: { url: string }) =>
+  c.url.replace(/\/$/, "").split("/").pop()!;
 
 const App = () => {
-  const [city, setCity] = useState("Rimini");
-  const [flyers, setFlyers] = useState<Array<FlyerI>>([]);
-  const [products, setProducts] = useState("pizza,chilly");
-  const [results, setResults] = useState<Array<FlyerI>>([]);
-  const [loading, setLoading] = useState(false);
-  const [accordion, setAccordion] = useState<Array<string>>(
-    CATEGORIES.map((c) => c.name)
+  const [city, setCity] = useState(initialActive?.city ?? "Rimini");
+  const [citySlug, setCitySlug] = useState(initialActive?.citySlug ?? "rimini");
+  const [flyers, setFlyers] = useState<FlyerI[]>(initialActive?.flyers ?? []);
+  const [products, setProducts] = useState<ProductQuery[]>(
+    initialActive?.products ?? []
   );
+  const [results, setResults] = useState<FlyerI[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [retailersByCategory, setRetailersByCategory] = useState<
+    Record<string, FlyerI[]>
+  >({});
+
+  const [view, setView] = useState<View>("main");
+
+  const [presets, setPresets] = useState<Preset[]>(initialPresets);
+  const [activeId, setActiveId] = useState<string | null>(initialActiveId);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createInitialName, setCreateInitialName] = useState("");
+  const [createInitialSource, setCreateInitialSource] = useState<string | null>(
+    null
+  );
+  const [renameTarget, setRenameTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const [lists, setLists] = useState<List[]>(() => loadLists());
+  const [pendingItem, setPendingItem] = useState<RowData | null>(null);
+  const [newListOpen, setNewListOpen] = useState(false);
+  const [editListId, setEditListId] = useState<string | null>(null);
+  const [deleteListId, setDeleteListId] = useState<string | null>(null);
+  const [removeItemTarget, setRemoveItemTarget] = useState<{
+    row: RowData;
+    list: List;
+  } | null>(null);
+
+  const active = presets.find((p) => p.id === activeId) ?? null;
+  const renameTargetPreset = presets.find((p) => p.id === renameTarget) ?? null;
+  const deleteTargetPreset = presets.find((p) => p.id === deleteTarget) ?? null;
+  const editListTarget = lists.find((l) => l.id === editListId) ?? null;
+  const deleteListTarget = lists.find((l) => l.id === deleteListId) ?? null;
+  const dirty = active
+    ? isPresetDirty(active, { city, citySlug, flyers, products })
+    : false;
+
+  useEffect(() => {
+    savePresets(presets);
+  }, [presets]);
+  useEffect(() => {
+    saveActivePresetId(activeId);
+  }, [activeId]);
+  useEffect(() => {
+    saveLists(lists);
+  }, [lists]);
+
+  useEffect(() => {
+    if (presets.length === 0) {
+      const initial = createPreset({
+        name: DEFAULT_PRESET_NAME,
+        city,
+        citySlug,
+        flyers,
+        products,
+        default: true,
+      });
+      setPresets([initial]);
+      setActiveId(initial.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    Promise.all(
+      CATEGORIES.map((c) =>
+        fetch(`/api/retailers/${slugOf(c)}`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((retailers: FlyerI[]) => [c.name, retailers] as const)
+          .catch(() => [c.name, []] as const)
+      )
+    ).then((entries) => setRetailersByCategory(Object.fromEntries(entries)));
+  }, []);
+
+  // ---- main wizard handlers ----
 
   const onRun = async () => {
     setLoading(true);
     const res = await fetch("/api/scraper", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        city,
-        flyers,
-        products: products.split(","),
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ city: citySlug || city, flyers, products }),
     });
     const data = await res.json();
     setResults(data.flyers);
     setLoading(false);
   };
 
-  const onFlyer = (flyer: FlyerI) => {
-    console.log(flyer);
-    const f = flyers.find((f) => f.name === flyer.name);
-    if (f) {
-      setFlyers(flyers.filter((f) => f.name !== flyer.name));
-    } else {
-      setFlyers(flyers.concat(flyer));
+  const onToggleFlyer = (flyer: FlyerI) => {
+    setFlyers((prev) =>
+      prev.find((f) => f.name === flyer.name)
+        ? prev.filter((f) => f.name !== flyer.name)
+        : prev.concat(flyer)
+    );
+  };
+
+  // ---- preset handlers ----
+
+  const applyPreset = (preset: Preset) => {
+    setCity(preset.city);
+    setCitySlug(preset.citySlug);
+    setFlyers(preset.flyers);
+    setProducts(preset.products);
+    setActiveId(preset.id);
+  };
+
+  const onSelectPreset = (id: string) => {
+    const p = presets.find((p) => p.id === id);
+    if (p) applyPreset(p);
+  };
+
+  const onCreatePreset = (name: string, sourceId?: string | null) => {
+    const source = sourceId ? presets.find((p) => p.id === sourceId) : null;
+    const data = source
+      ? {
+          city: source.city,
+          citySlug: source.citySlug,
+          flyers: source.flyers,
+          products: source.products,
+        }
+      : { city, citySlug, flyers, products };
+    const next = createPreset({ name, ...data });
+    setPresets([...presets, next]);
+    applyPreset(next);
+  };
+
+  const onRequestCreate = () => {
+    setCreateInitialName("");
+    setCreateInitialSource(null);
+    setCreateOpen(true);
+  };
+
+  const onRequestDuplicate = (id: string) => {
+    const src = presets.find((p) => p.id === id);
+    if (!src) return;
+    setCreateInitialName(`Copia di ${src.name}`);
+    setCreateInitialSource(id);
+    setCreateOpen(true);
+  };
+
+  const onRenamePreset = (id: string, name: string) => {
+    setPresets(
+      presets.map((p) =>
+        p.id === id ? { ...p, name, updatedAt: Date.now() } : p
+      )
+    );
+  };
+
+  const onDeletePreset = (id: string) => {
+    const target = presets.find((p) => p.id === id);
+    if (target?.default) return;
+    const next = presets.filter((p) => p.id !== id);
+    setPresets(next);
+    if (activeId === id) {
+      const newActive = next.find((p) => p.default) ?? next[0] ?? null;
+      setActiveId(newActive?.id ?? null);
+      if (newActive) applyPreset(newActive);
     }
+  };
+
+  const onUpdateActive = () => {
+    if (!active) return;
+    setPresets(
+      presets.map((p) =>
+        p.id === active.id
+          ? { ...p, city, citySlug, flyers, products, updatedAt: Date.now() }
+          : p
+      )
+    );
+  };
+
+  const onResetToActive = () => {
+    if (active) applyPreset(active);
+  };
+
+  // ---- list handlers ----
+
+  const onAddToList = (listId: string, row: RowData) => {
+    setLists(
+      lists.map((l) =>
+        l.id === listId
+          ? {
+              ...l,
+              items: [...l.items, makeSavedItem(row)],
+              updatedAt: Date.now(),
+            }
+          : l
+      )
+    );
+  };
+
+  const onRequestNewList = (row: RowData) => {
+    setPendingItem(row);
+    setNewListOpen(true);
+  };
+
+  const onSubmitNewList = (name: string, color: string) => {
+    const list = createList(name, color);
+    if (pendingItem) list.items.push(makeSavedItem(pendingItem));
+    setLists([...lists, list]);
+    setPendingItem(null);
+  };
+
+  const onSubmitListEdit = (name: string, color: string) => {
+    if (!editListId) return;
+    setLists(
+      lists.map((l) =>
+        l.id === editListId
+          ? { ...l, name, color, updatedAt: Date.now() }
+          : l
+      )
+    );
+    setEditListId(null);
+  };
+
+  const onConfirmDeleteList = () => {
+    if (!deleteListId) return;
+    setLists(lists.filter((l) => l.id !== deleteListId));
+    setDeleteListId(null);
+  };
+
+  const onRemoveExpired = (id: string) => {
+    setLists(
+      lists.map((l) =>
+        l.id === id
+          ? {
+              ...l,
+              items: l.items.filter((i) => !isExpired(i.validUntil)),
+              updatedAt: Date.now(),
+            }
+          : l
+      )
+    );
+  };
+
+  const onConfirmRemoveItem = () => {
+    if (!removeItemTarget) return;
+    const { row, list } = removeItemTarget;
+    const key = itemKey(row);
+    setLists(
+      lists.map((l) =>
+        l.id === list.id
+          ? {
+              ...l,
+              items: l.items.filter((i) => itemKey(i) !== key),
+              updatedAt: Date.now(),
+            }
+          : l
+      )
+    );
+    setRemoveItemTarget(null);
   };
 
   return (
     <>
-      <header>
-        <div className="flex gap-4 items-center justify-between h-20 shadow">
-          <div className="container ">
-            <div className="max-w-50">
-              <img src={doveConvieneLogo} alt="logo" />
-            </div>
-          </div>
-        </div>
-      </header>
-      <main className="py-10">
+      <Topbar
+        presets={presets}
+        activeId={activeId}
+        view={view}
+        onChangeView={setView}
+        onSelectPreset={onSelectPreset}
+        onRequestCreate={onRequestCreate}
+        onRequestRename={(id) => setRenameTarget(id)}
+        onRequestDuplicate={onRequestDuplicate}
+        onRequestDelete={(id) => setDeleteTarget(id)}
+      />
+      <main className="pt-28 pb-10">
         <div className="container">
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>1 - Seleziona una località</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Label>Località</Label>
-                <Input
-                  onInput={(e) => setCity(e.currentTarget.value)}
-                  value={city}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>2 - Seleziona i volantini</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Accordion
-                  className="space-y-2"
-                  onValueChange={(c) => setAccordion(c)}
-                  value={accordion}
-                  type="multiple"
-                >
-                  {CATEGORIES.map((category) => {
-                    const _flyers = FLYERS.filter(
-                      (flyer) => flyer.category.name === category.name
-                    );
-                    return (
-                      <AccordionItem value={category.name}>
-                        <AccordionTrigger>{category.name}</AccordionTrigger>
-
-                        <AccordionContent>
-                          <div className="flex gap-4">
-                            {_flyers.map((flyer) => {
-                              return (
-                                <Flyer
-                                  className={cn(
-                                    flyers.find((f) => f.name === flyer.name) &&
-                                      "bg-amber-300"
-                                  )}
-                                  onClick={() => onFlyer(flyer)}
-                                  {...flyer}
-                                />
-                              );
-                            })}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>3 - Inserisci i prodotti (nome e prezzo)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Label>Prodotti</Label>
-                <ProductsInputList onChange={() => {}} />
-              </CardContent>
-            </Card>
-
-            <div className="space-y-2"></div>
-
-            {/* {products && <Products flyers={results} />} */}
-
-            <Button
-              disabled={loading}
-              className="flex gap-2 items-center"
-              onClick={() => onRun()}
-            >
-              <span>Run</span>
-              {loading && <Spinner />}
-            </Button>
-          </div>
+          {view === "lists" ? (
+            <ListsView
+              lists={lists}
+              onAddToList={onAddToList}
+              onRequestNewList={onRequestNewList}
+              onRequestRemove={(row, list) =>
+                setRemoveItemTarget({ row, list })
+              }
+              onRequestRename={(id) => setEditListId(id)}
+              onRequestRecolor={(id) => setEditListId(id)}
+              onRequestDelete={(id) => setDeleteListId(id)}
+              onRemoveExpired={onRemoveExpired}
+            />
+          ) : (
+            <Wizard
+              city={city}
+              citySlug={citySlug}
+              onCitySelect={({ name, slug }) => {
+                setCity(name);
+                setCitySlug(slug);
+              }}
+              onCityChange={(raw) => {
+                setCity(raw);
+                setCitySlug("");
+              }}
+              flyers={flyers}
+              onToggleFlyer={onToggleFlyer}
+              retailersByCategory={retailersByCategory}
+              products={products}
+              onProductsChange={setProducts}
+              results={results}
+              loading={loading}
+              onRun={onRun}
+              presetDirty={!!active && dirty}
+              onUpdatePreset={onUpdateActive}
+              onResetPreset={onResetToActive}
+              lists={lists}
+              onAddToList={onAddToList}
+              onRequestNewList={onRequestNewList}
+              onRequestRemoveItem={(row, list) =>
+                setRemoveItemTarget({ row, list })
+              }
+            />
+          )}
         </div>
       </main>
+
+      <PresetNameDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="Nuovo preset"
+        description="Scegli un nome e da quale configurazione partire."
+        submitLabel="Crea"
+        initialName={createInitialName}
+        initialSourceId={createInitialSource}
+        sources={presets}
+        onSubmit={onCreatePreset}
+      />
+
+      <PresetNameDialog
+        open={renameTarget !== null}
+        onOpenChange={(o) => !o && setRenameTarget(null)}
+        title="Rinomina preset"
+        initialName={renameTargetPreset?.name ?? ""}
+        submitLabel="Salva"
+        onSubmit={(name) => {
+          if (renameTarget) onRenamePreset(renameTarget, name);
+        }}
+      />
+
+      <PresetDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        presetName={deleteTargetPreset?.name ?? ""}
+        onConfirm={() => {
+          if (deleteTarget) onDeletePreset(deleteTarget);
+        }}
+      />
+
+      <ListEditDialog
+        open={newListOpen}
+        onOpenChange={(o) => {
+          setNewListOpen(o);
+          if (!o) setPendingItem(null);
+        }}
+        title="Nuova lista"
+        submitLabel="Crea"
+        onSubmit={onSubmitNewList}
+      />
+
+      <ListEditDialog
+        open={editListId !== null}
+        onOpenChange={(o) => !o && setEditListId(null)}
+        title="Modifica lista"
+        submitLabel="Salva"
+        initialName={editListTarget?.name ?? ""}
+        initialColor={editListTarget?.color}
+        onSubmit={onSubmitListEdit}
+      />
+
+      <ConfirmDialog
+        open={deleteListId !== null}
+        onOpenChange={(o) => !o && setDeleteListId(null)}
+        title="Eliminare la lista?"
+        description={
+          deleteListTarget && (
+            <>
+              Stai per eliminare <strong>«{deleteListTarget.name}»</strong> con{" "}
+              {deleteListTarget.items.length} prodott
+              {deleteListTarget.items.length === 1 ? "o" : "i"}. L'azione non
+              può essere annullata.
+            </>
+          )
+        }
+        confirmLabel="Elimina"
+        destructive
+        onConfirm={onConfirmDeleteList}
+      />
+
+      <ConfirmDialog
+        open={removeItemTarget !== null}
+        onOpenChange={(o) => !o && setRemoveItemTarget(null)}
+        title="Rimuovere il prodotto?"
+        description={
+          removeItemTarget && (
+            <>
+              Rimuovere <strong>«{removeItemTarget.row.productName}»</strong>{" "}
+              da <strong>«{removeItemTarget.list.name}»</strong>?
+            </>
+          )
+        }
+        confirmLabel="Rimuovi"
+        destructive
+        onConfirm={onConfirmRemoveItem}
+      />
     </>
   );
 };
