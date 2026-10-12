@@ -10,6 +10,8 @@
     "build": "bun run typecheck && vite build",
     "typecheck": "node node_modules/@typescript/native/bin/tsc -b",
     "lint": "eslint .",
+    "format": "biome format --write",
+    "format:check": "biome format",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -28,6 +30,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.4.3",
     "@types/express": "^5.0.6",
