@@ -73,31 +73,33 @@ const ListsView = ({
                   Rimuovi scaduti{expiredCount > 0 && ` (${expiredCount})`}
                 </Button>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Azioni lista"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Azioni lista"
+                      />
+                    }
+                  >
+                    <MoreVertical className="w-4 h-4" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-auto">
                     <DropdownMenuItem
-                      onSelect={() => onRequestRename(list.id)}
+                      onClick={() => onRequestRename(list.id)}
                     >
                       <Pencil className="w-4 h-4" />
                       Rinomina
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onSelect={() => onRequestRecolor(list.id)}
+                      onClick={() => onRequestRecolor(list.id)}
                     >
                       <Palette className="w-4 h-4" />
                       Cambia colore
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
-                      onSelect={() => onRequestDelete(list.id)}
+                      onClick={() => onRequestDelete(list.id)}
                     >
                       <Trash2 className="w-4 h-4" />
                       Elimina lista

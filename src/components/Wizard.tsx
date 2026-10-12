@@ -74,7 +74,7 @@ const Wizard = ({
         <CardHeader>
           <CardTitle>1 - Seleziona una località</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="gap-2">
           <Label>Località</Label>
           <CityAutocomplete
             value={city}
@@ -94,7 +94,7 @@ const Wizard = ({
             className="space-y-2"
             onValueChange={setOpenAccordion}
             value={openAccordion}
-            type="multiple"
+            multiple
           >
             {CATEGORIES.map((category) => {
               const items = retailersByCategory[category.name] ?? [];
@@ -146,7 +146,7 @@ const Wizard = ({
         <CardHeader>
           <CardTitle>3 - Inserisci i prodotti</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="gap-2">
           <Label>Prodotti</Label>
           <ProductsChipsInput
             value={products}
