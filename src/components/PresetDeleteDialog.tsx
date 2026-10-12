@@ -15,7 +15,12 @@ interface Props {
   onConfirm: () => void;
 }
 
-const PresetDeleteDialog = ({ open, onOpenChange, presetName, onConfirm }: Props) => (
+const PresetDeleteDialog = ({
+  open,
+  onOpenChange,
+  presetName,
+  onConfirm,
+}: Props) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>

@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -17,11 +23,7 @@ interface Props {
 }
 
 const normalize = (s: string): string =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim();
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
 const MAX_RESULTS = 10;
 

@@ -85,15 +85,11 @@ const ListsView = ({
                     <MoreVertical className="w-4 h-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-auto">
-                    <DropdownMenuItem
-                      onClick={() => onRequestRename(list.id)}
-                    >
+                    <DropdownMenuItem onClick={() => onRequestRename(list.id)}>
                       <Pencil className="w-4 h-4" />
                       Rinomina
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onRequestRecolor(list.id)}
-                    >
+                    <DropdownMenuItem onClick={() => onRequestRecolor(list.id)}>
                       <Palette className="w-4 h-4" />
                       Cambia colore
                     </DropdownMenuItem>

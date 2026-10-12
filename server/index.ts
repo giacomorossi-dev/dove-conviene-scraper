@@ -21,7 +21,9 @@ app.get("/api/cities", async (_req, res) => {
 });
 
 app.get("/api/retailers/:slug", async (req, res) => {
-  const category = CATEGORIES.find((c) => c.url.endsWith(`/${req.params.slug}`));
+  const category = CATEGORIES.find((c) =>
+    c.url.endsWith(`/${req.params.slug}`)
+  );
   if (!category) {
     res.status(404).send({ error: `unknown category: ${req.params.slug}` });
     return;

@@ -68,9 +68,7 @@ async function getFlyersByCategory(
       const $el = $(el);
       const name = collapseSpaces($el.find(".flyerCard__titleText").text());
       const href = $el.find("a.flyerCard__body").attr("href") ?? "";
-      const dataBg = $el
-        .find(".flyerCard__blurredBackground")
-        .attr("data-bg");
+      const dataBg = $el.find(".flyerCard__blurredBackground").attr("data-bg");
       return {
         name,
         url: href ? absoluteUrl(href) : "",

@@ -10,9 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CATEGORIES } from "@/categories";
 import Flyer, { type Flyer as FlyerI } from "./Flyer";
-import ProductsChipsInput, {
-  type ProductQuery,
-} from "./ProductsChipsInput";
+import ProductsChipsInput, { type ProductQuery } from "./ProductsChipsInput";
 import CityAutocomplete from "./CityAutocomplete";
 import ResultsTable from "./ResultsTable";
 import type { List, RowData } from "@/lib/lists";
@@ -148,10 +146,7 @@ const Wizard = ({
         </CardHeader>
         <CardContent className="gap-2">
           <Label>Prodotti</Label>
-          <ProductsChipsInput
-            value={products}
-            onChange={onProductsChange}
-          />
+          <ProductsChipsInput value={products} onChange={onProductsChange} />
         </CardContent>
       </Card>
 

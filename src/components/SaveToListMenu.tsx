@@ -63,10 +63,7 @@ const SaveToListMenu = ({
           <DropdownMenuLabel>Aggiungi alla lista</DropdownMenuLabel>
           {lists.length > 0 && <DropdownMenuSeparator />}
           {lists.map((l) => (
-            <DropdownMenuItem
-              key={l.id}
-              onClick={() => onAddToList(l.id, row)}
-            >
+            <DropdownMenuItem key={l.id} onClick={() => onAddToList(l.id, row)}>
               <span
                 className="w-3 h-3 rounded-sm shrink-0"
                 style={{ backgroundColor: l.color }}

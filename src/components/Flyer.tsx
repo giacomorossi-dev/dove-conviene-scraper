@@ -46,11 +46,7 @@ const Flyer = ({
         className
       )}
     >
-      <img
-        className="w-full h-full object-contain"
-        src={imageUrl}
-        alt={name}
-      />
+      <img className="w-full h-full object-contain" src={imageUrl} alt={name} />
       {selected && (
         <span className="absolute top-0.5 right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-green-600 text-white shadow">
           <Check className="w-3 h-3" strokeWidth={3} />

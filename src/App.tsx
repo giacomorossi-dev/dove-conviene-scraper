@@ -277,9 +277,7 @@ const App = () => {
     if (!editListId) return;
     setLists(
       lists.map((l) =>
-        l.id === editListId
-          ? { ...l, name, color, updatedAt: Date.now() }
-          : l
+        l.id === editListId ? { ...l, name, color, updatedAt: Date.now() } : l
       )
     );
     setEditListId(null);
@@ -467,8 +465,8 @@ const App = () => {
         description={
           removeItemTarget && (
             <>
-              Rimuovere <strong>«{removeItemTarget.row.productName}»</strong>{" "}
-              da <strong>«{removeItemTarget.list.name}»</strong>?
+              Rimuovere <strong>«{removeItemTarget.row.productName}»</strong> da{" "}
+              <strong>«{removeItemTarget.list.name}»</strong>?
             </>
           )
         }
