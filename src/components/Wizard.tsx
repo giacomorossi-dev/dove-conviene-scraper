@@ -8,9 +8,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CATEGORIES } from "@/categories";
-import Flyer, { type Flyer as FlyerI } from "./Flyer";
-import ProductsChipsInput, { type ProductQuery } from "./ProductsChipsInput";
+import { CATEGORIES } from "@shared/categories";
+import type { Flyer as FlyerI, ProductQuery } from "@shared/types";
+import Flyer from "./Flyer";
+import ProductsChipsInput from "./ProductsChipsInput";
 import CityAutocomplete from "./CityAutocomplete";
 import ResultsTable from "./ResultsTable";
 import type { List, RowData } from "@/lib/lists";

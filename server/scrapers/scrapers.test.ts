@@ -2,7 +2,7 @@
 // Assertions are structural so they keep passing after `fixtures:update`;
 // if they fail after a refresh, the site markup changed.
 import { describe, expect, test } from "bun:test";
-import { BASE_URL, CATEGORIES } from "../config";
+import { BASE_URL, CATEGORIES } from "../../shared/categories";
 import { parseCities } from "./cities";
 import { normalizeQueries, parseFlyerCards, parseFlyerData } from "./flyers";
 import { parseRetailers } from "./retailers";

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
-import type { Category } from "../config";
+import type { Category } from "../../shared/categories";
+import type { Flyer } from "../../shared/types";
 import { absoluteUrl, collapseSpaces, fetchHtml } from "../http";
-import type { Flyer } from "./flyers";
 
 const cache = new Map<string, Flyer[]>();
 

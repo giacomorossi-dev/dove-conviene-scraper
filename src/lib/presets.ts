@@ -1,5 +1,4 @@
-import type { Flyer } from "@/components/Flyer";
-import type { ProductQuery } from "@/components/ProductsChipsInput";
+import type { Flyer, ProductQuery } from "@shared/types";
 
 export interface Preset {
   id: string;

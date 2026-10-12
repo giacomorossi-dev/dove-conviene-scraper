@@ -1,23 +1,8 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Category } from "@/categories";
+import type { Flyer as FlyerData } from "@shared/types";
 
-export interface Product {
-  name: string;
-  imageUrl: string | null;
-  price: number | null;
-}
-
-export interface Flyer {
-  name: string;
-  imageUrl: string;
-  category: Category;
-  url?: string;
-  validUntil?: string;
-  products?: Product[];
-}
-
-interface Props extends Flyer {
+interface Props extends FlyerData {
   onClick: () => void;
   className?: string;
   selected?: boolean;

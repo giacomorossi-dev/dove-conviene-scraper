@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
-import { BASE_URL, type Category } from "../config";
+import { BASE_URL, type Category } from "../../shared/categories";
+import type { Flyer, Product, ProductQuery } from "../../shared/types";
 import {
   absoluteUrl,
   collapseSpaces,
@@ -7,26 +8,6 @@ import {
   normalize,
   slugify,
 } from "../http";
-
-export interface Product {
-  name: string;
-  imageUrl: string | null;
-  price: number | null;
-}
-
-export interface Flyer {
-  name: string;
-  imageUrl: string;
-  category: Category;
-  url?: string;
-  validUntil?: string;
-  products?: Product[];
-}
-
-export interface ProductQuery {
-  name: string;
-  maxPrice?: number;
-}
 
 export interface NormalizedQuery {
   name: string;

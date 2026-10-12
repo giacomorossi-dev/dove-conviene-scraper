@@ -7,12 +7,7 @@ import {
 } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-interface City {
-  name: string;
-  slug: string;
-  region: string;
-}
+import type { City } from "@shared/types";
 
 interface Props {
   value: string;

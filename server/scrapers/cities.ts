@@ -1,12 +1,7 @@
 import * as cheerio from "cheerio";
-import { BASE_URL } from "../config";
+import { BASE_URL } from "../../shared/categories";
+import type { City } from "../../shared/types";
 import { collapseSpaces, fetchHtml } from "../http";
-
-export interface City {
-  name: string;
-  slug: string;
-  region: string;
-}
 
 let cache: City[] | null = null;
 

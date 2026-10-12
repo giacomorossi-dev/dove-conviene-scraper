@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
-import { CATEGORIES } from "./categories";
-import type { Flyer as FlyerI } from "./components/Flyer";
-import type { ProductQuery } from "./components/ProductsChipsInput";
+import { CATEGORIES } from "@shared/categories";
+import type {
+  Flyer as FlyerI,
+  ProductQuery,
+  ScrapeMessage,
+  ScrapeRequest,
+} from "@shared/types";
 import Wizard from "./components/Wizard";
 import ListsView from "./components/ListsView";
 import Topbar, { type View } from "./components/Topbar";
@@ -126,10 +130,15 @@ const App = () => {
     setLoading(true);
     setResults([]);
     try {
+      const request: ScrapeRequest = {
+        city: citySlug || city,
+        flyers,
+        products,
+      };
       const res = await fetch("/api/scraper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city: citySlug || city, flyers, products }),
+        body: JSON.stringify(request),
       });
       if (!res.ok || !res.body) return;
 
@@ -145,8 +154,11 @@ const App = () => {
         for (const line of lines) {
           if (!line.trim()) continue;
           try {
-            const msg = JSON.parse(line) as { flyer?: FlyerI };
-            if (msg.flyer) setResults((prev) => [...prev, msg.flyer!]);
+            const msg = JSON.parse(line) as ScrapeMessage;
+            if ("flyer" in msg) {
+              const { flyer } = msg;
+              setResults((prev) => [...prev, flyer]);
+            }
           } catch {
             /* skip malformed line */
           }

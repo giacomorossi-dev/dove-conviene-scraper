@@ -42,6 +42,7 @@ Vite inoltra `/api` al server.
 ## Struttura
 
 ```
+shared/            tipi e categorie usati da server e client (alias @shared nel client)
 server/            API Express (index.ts) e scraper
   scrapers/        parser di città, insegne, volantini + test e __fixtures__
 scripts/           script di manutenzione (aggiornamento fixture)

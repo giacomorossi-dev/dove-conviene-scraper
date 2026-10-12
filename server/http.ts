@@ -1,4 +1,5 @@
-import { BASE_URL, USER_AGENT } from "./config";
+import { BASE_URL } from "../shared/categories";
+import { USER_AGENT } from "./config";
 
 export async function fetchHtml(url: string): Promise<string> {
   const res = await fetch(url, {
