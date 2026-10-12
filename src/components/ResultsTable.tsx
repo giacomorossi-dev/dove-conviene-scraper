@@ -55,6 +55,43 @@ const dateValue = (iso: string | null): number =>
     ? new Date(iso).getTime() || Number.MAX_SAFE_INTEGER
     : Number.MAX_SAFE_INTEGER;
 
+interface SortHeaderProps {
+  sortKey: SortKey;
+  label: string;
+  sort: { key: SortKey; dir: SortDir };
+  onSort: (key: SortKey) => void;
+  className?: string;
+}
+
+const SortHeader = ({
+  sortKey,
+  label,
+  sort,
+  onSort,
+  className,
+}: SortHeaderProps) => (
+  <button
+    type="button"
+    onClick={() => onSort(sortKey)}
+    className={cn(
+      "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+      sort.key === sortKey ? "text-foreground" : "text-muted-foreground",
+      className
+    )}
+  >
+    {label}
+    {sort.key === sortKey ? (
+      sort.dir === "asc" ? (
+        <ChevronUp className="w-3 h-3" />
+      ) : (
+        <ChevronDown className="w-3 h-3" />
+      )
+    ) : (
+      <ChevronsUpDown className="w-3 h-3 opacity-50" />
+    )}
+  </button>
+);
+
 const ResultsTable = ({
   rows,
   lists,
@@ -111,37 +148,6 @@ const ResultsTable = ({
     );
   };
 
-  const SortHeader = ({
-    sortKey,
-    label,
-    className,
-  }: {
-    sortKey: SortKey;
-    label: string;
-    className?: string;
-  }) => (
-    <button
-      type="button"
-      onClick={() => toggleSort(sortKey)}
-      className={cn(
-        "inline-flex items-center gap-1 hover:text-foreground transition-colors",
-        sort.key === sortKey ? "text-foreground" : "text-muted-foreground",
-        className
-      )}
-    >
-      {label}
-      {sort.key === sortKey ? (
-        sort.dir === "asc" ? (
-          <ChevronUp className="w-3 h-3" />
-        ) : (
-          <ChevronDown className="w-3 h-3" />
-        )
-      ) : (
-        <ChevronsUpDown className="w-3 h-3 opacity-50" />
-      )}
-    </button>
-  );
-
   const filterBar =
     rows.length > 0 ? (
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -188,18 +194,35 @@ const ResultsTable = ({
             <TableRow>
               <TableHead className="w-20"></TableHead>
               <TableHead>
-                <SortHeader sortKey="productName" label="Prodotto" />
+                <SortHeader
+                  sortKey="productName"
+                  label="Prodotto"
+                  sort={sort}
+                  onSort={toggleSort}
+                />
               </TableHead>
               <TableHead>
-                <SortHeader sortKey="flyerName" label="Volantino" />
+                <SortHeader
+                  sortKey="flyerName"
+                  label="Volantino"
+                  sort={sort}
+                  onSort={toggleSort}
+                />
               </TableHead>
               <TableHead className="w-32">
-                <SortHeader sortKey="validUntil" label="Scadenza" />
+                <SortHeader
+                  sortKey="validUntil"
+                  label="Scadenza"
+                  sort={sort}
+                  onSort={toggleSort}
+                />
               </TableHead>
               <TableHead className="w-28 text-right">
                 <SortHeader
                   sortKey="price"
                   label="Prezzo"
+                  sort={sort}
+                  onSort={toggleSort}
                   className="ml-auto"
                 />
               </TableHead>

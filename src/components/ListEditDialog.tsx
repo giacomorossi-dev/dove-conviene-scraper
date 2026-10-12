@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check } from "lucide-react";
 import {
   Dialog,
@@ -35,12 +35,15 @@ const ListEditDialog = ({
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState(initialColor);
 
-  useEffect(() => {
+  // Reset the form each time the dialog opens.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setName(initialName);
       setColor(initialColor);
     }
-  }, [open, initialName, initialColor]);
+  }
 
   const submit = () => {
     const trimmed = name.trim();

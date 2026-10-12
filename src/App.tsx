@@ -32,8 +32,23 @@ import {
   type RowData,
 } from "./lib/lists";
 
-const initialPresets = loadPresets();
-const initialActiveId = loadActivePresetId();
+const storedPresets = loadPresets();
+// First run: seed the default preset up front instead of in a mount effect.
+const initialPresets =
+  storedPresets.length > 0
+    ? storedPresets
+    : [
+        createPreset({
+          name: DEFAULT_PRESET_NAME,
+          city: "Rimini",
+          citySlug: "rimini",
+          flyers: [],
+          products: [],
+          default: true,
+        }),
+      ];
+const initialActiveId =
+  storedPresets.length > 0 ? loadActivePresetId() : initialPresets[0].id;
 const initialActive =
   initialPresets.find((p) => p.id === initialActiveId) ?? null;
 
@@ -93,22 +108,6 @@ const App = () => {
   useEffect(() => {
     saveLists(lists);
   }, [lists]);
-
-  useEffect(() => {
-    if (presets.length === 0) {
-      const initial = createPreset({
-        name: DEFAULT_PRESET_NAME,
-        city,
-        citySlug,
-        flyers,
-        products,
-        default: true,
-      });
-      setPresets([initial]);
-      setActiveId(initial.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     Promise.all(

@@ -42,9 +42,12 @@ const CityAutocomplete = ({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Sync the input when the parent changes `value` (e.g. a preset is applied).
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setQuery(value);
-  }, [value]);
+  }
 
   useEffect(() => {
     if (citiesCache) return;
