@@ -16,6 +16,8 @@
     "lint": "eslint .",
     "format": "biome format --write",
     "format:check": "biome format",
+    "test": "bun test",
+    "fixtures:update": "bun scripts/update-fixtures.ts",
     "preview": "vite preview"
   },
   "dependencies": {

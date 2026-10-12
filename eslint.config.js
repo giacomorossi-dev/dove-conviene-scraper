@@ -21,7 +21,7 @@ export default defineConfig([
   },
   {
     // Bun server and tooling config
-    files: ["server/**/*.ts", "*.config.ts"],
+    files: ["server/**/*.ts", "scripts/**/*.ts", "*.config.ts"],
     languageOptions: {
       globals: globals.node,
     },

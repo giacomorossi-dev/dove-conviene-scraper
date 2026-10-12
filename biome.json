@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!src/components/ui"]
+    "includes": ["**", "!src/components/ui", "!server/scrapers/__fixtures__"]
   },
   "formatter": {
     "enabled": true,

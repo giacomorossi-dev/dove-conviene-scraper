@@ -28,10 +28,15 @@ export interface ProductQuery {
   maxPrice?: number;
 }
 
-interface NormalizedQuery {
+export interface NormalizedQuery {
   name: string;
   maxPrice?: number;
 }
+
+export const normalizeQueries = (products: ProductQuery[]): NormalizedQuery[] =>
+  products
+    .map((p) => ({ name: normalize(p.name), maxPrice: p.maxPrice }))
+    .filter((q) => q.name);
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -59,10 +64,17 @@ async function getFlyersByCategory(
   wanted: Flyer[]
 ): Promise<Flyer[]> {
   const url = `${BASE_URL}/${citySlug}/${categorySlug(category)}`;
-  const html = await fetchHtml(url);
+  const cards = parseFlyerCards(await fetchHtml(url), category);
+
+  const wantedNames = wanted.map((f) => f.name);
+  return cards.filter((f) => wantedNames.some((n) => f.name.includes(n)));
+}
+
+/** Parses the flyer cards of a city/category page. */
+export function parseFlyerCards(html: string, category: Category): Flyer[] {
   const $ = cheerio.load(html);
 
-  const cards: Flyer[] = $(".flyersGrid__item")
+  return $(".flyersGrid__item")
     .toArray()
     .map((el) => {
       const $el = $(el);
@@ -76,12 +88,9 @@ async function getFlyersByCategory(
         category,
       };
     });
-
-  const wantedNames = wanted.map((f) => f.name);
-  return cards.filter((f) => wantedNames.some((n) => f.name.includes(n)));
 }
 
-interface FlyerData {
+export interface FlyerData {
   products: Product[];
   validUntil: string | null;
 }
@@ -91,7 +100,17 @@ async function getFlyerData(
   queries: NormalizedQuery[]
 ): Promise<FlyerData> {
   if (!flyer.url) return { products: [], validUntil: null };
-  const html = await fetchHtml(flyer.url);
+  return parseFlyerData(await fetchHtml(flyer.url), queries);
+}
+
+/**
+ * Extracts the products matching `queries` (and the expiry date) from the
+ * JSON-LD blocks of a flyer page.
+ */
+export function parseFlyerData(
+  html: string,
+  queries: NormalizedQuery[]
+): FlyerData {
   const $ = cheerio.load(html);
 
   const products: Product[] = [];
@@ -157,9 +176,7 @@ export async function* scrapeFlyersStream(
   products: ProductQuery[]
 ): AsyncGenerator<Flyer> {
   const citySlug = slugify(location);
-  const queries: NormalizedQuery[] = products
-    .map((p) => ({ name: normalize(p.name), maxPrice: p.maxPrice }))
-    .filter((q) => q.name);
+  const queries = normalizeQueries(products);
 
   const categories = flyers.reduce<Category[]>((acc, f) => {
     if (!acc.find((c) => c.url === f.category.url)) acc.push(f.category);
