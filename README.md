@@ -1,73 +1,67 @@
-# React + TypeScript + Vite
+# Scaper Conviene
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Progetto personale che cerca le offerte nei volantini di
+[doveconviene.it](https://www.doveconviene.it): scegli città, insegne e prodotti
+(con prezzo massimo opzionale) e ottieni una tabella dei risultati, aggiornata
+in streaming mentre i volantini vengono letti. I prodotti si possono salvare in
+liste e le ricerche in preset (salvati in `localStorage`).
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Client**: React 19, Vite 8, Tailwind CSS 4, shadcn/ui su Base UI (stile `base-vega`)
+- **Server**: Bun + Express 5, scraping con Cheerio (dati strutturati JSON-LD delle pagine)
+- **Tooling**: TypeScript 7, ESLint 10, Biome (solo formatter), `bun test`
 
-## React Compiler
+## Requisiti
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+- Node 24 (`nvm use`, legge `.nvmrc`; minimo 22.12)
+- Bun 1.3
 
-## Expanding the ESLint configuration
+## Avvio
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+bun install
+bun run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Avvia il server API su `:3000` e Vite su `:5173` (o la prima porta libera);
+Vite inoltra `/api` al server.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Script
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Script                    | Cosa fa                                                  |
+| ------------------------- | -------------------------------------------------------- |
+| `bun run dev`             | server API + client in watch                             |
+| `bun run build`           | typecheck + build di produzione in `dist/`               |
+| `bun run typecheck`       | TypeScript 7 su client, server, test e config            |
+| `bun run lint`            | ESLint                                                   |
+| `bun run format`          | formatta con Biome (`format:check` per il solo controllo) |
+| `bun run test`            | test dei parser e degli helper                           |
+| `bun run fixtures:update` | riscarica le pagine usate come fixture dai test          |
+
+## Struttura
+
 ```
+server/            API Express (index.ts) e scraper
+  scrapers/        parser di città, insegne, volantini + test e __fixtures__
+scripts/           script di manutenzione (aggiornamento fixture)
+src/               app React
+  components/ui/   componenti shadcn (generati dalla CLI)
+  lib/             preset e liste (localStorage)
+```
+
+## Note
+
+- **Test e fixture**: i test girano su pagine reali salvate in
+  `server/scrapers/__fixtures__`. Per sapere se il sito ha cambiato markup:
+  `bun run fixtures:update && bun run test`.
+- **TypeScript 6 + 7**: TypeScript 7 non espone ancora un'API JS, quindi è
+  installato come `@typescript/native` ed esegue il typecheck, mentre il
+  pacchetto `typescript` resta alla 6 per typescript-eslint e l'editor.
+- **shadcn/ui**: i componenti si aggiungono con `bunx shadcn@latest add <nome>`.
+  `src/components/ui` è escluso da Biome, così i file restano identici al
+  registry (`bunx shadcn@latest add <nome> --dry-run` mostra eventuali modifiche).
+- **Formattazione nell'editor**: installa le estensioni consigliate
+  (`.vscode/extensions.json`) e imposta Biome come formatter predefinito.
+- **Blame**: `git config blame.ignoreRevsFile .git-blame-ignore-revs` per
+  ignorare i commit di sola formattazione.

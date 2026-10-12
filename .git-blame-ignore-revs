@@ -1,0 +1,5 @@
+# Formatting-only commits, skipped by `git blame` (GitHub applies this file
+# automatically; locally: git config blame.ignoreRevsFile .git-blame-ignore-revs)
+
+# style: format codebase with Biome
+9c57305f3ac95c0975b4d0e4e8471293e812b911
