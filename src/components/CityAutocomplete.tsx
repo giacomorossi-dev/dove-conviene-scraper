@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-interface City {
-  name: string;
-  slug: string;
-  region: string;
-}
+import type { City } from "@shared/types";
 
 interface Props {
   value: string;
@@ -17,11 +18,7 @@ interface Props {
 }
 
 const normalize = (s: string): string =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim();
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
 const MAX_RESULTS = 10;
 
@@ -40,9 +37,12 @@ const CityAutocomplete = ({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // Sync the input when the parent changes `value` (e.g. a preset is applied).
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setQuery(value);
-  }, [value]);
+  }
 
   useEffect(() => {
     if (citiesCache) return;

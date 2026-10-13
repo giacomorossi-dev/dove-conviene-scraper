@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -42,12 +42,15 @@ const PresetNameDialog = ({
   const [name, setName] = useState(initialName);
   const [sourceId, setSourceId] = useState<string | null>(initialSourceId);
 
-  useEffect(() => {
+  // Reset the form each time the dialog opens.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setName(initialName);
       setSourceId(initialSourceId);
     }
-  }, [open, initialName, initialSourceId]);
+  }
 
   const submit = () => {
     const trimmed = name.trim();
@@ -86,7 +89,9 @@ const PresetNameDialog = ({
                 id="preset-source"
                 value={sourceId ?? CURRENT}
                 onChange={(e) =>
-                  setSourceId(e.target.value === CURRENT ? null : e.target.value)
+                  setSourceId(
+                    e.target.value === CURRENT ? null : e.target.value
+                  )
                 }
                 className={cn(
                   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs",

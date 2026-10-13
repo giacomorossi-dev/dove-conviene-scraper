@@ -2,11 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-export interface ProductQuery {
-  name: string;
-  maxPrice?: number;
-}
+import type { ProductQuery } from "@shared/types";
 
 interface Props {
   value: ProductQuery[];

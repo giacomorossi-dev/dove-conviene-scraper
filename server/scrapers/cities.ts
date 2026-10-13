@@ -1,19 +1,18 @@
 import * as cheerio from "cheerio";
-import { BASE_URL } from "../config";
+import { BASE_URL } from "../../shared/categories";
+import type { City } from "../../shared/types";
 import { collapseSpaces, fetchHtml } from "../http";
-
-export interface City {
-  name: string;
-  slug: string;
-  region: string;
-}
 
 let cache: City[] | null = null;
 
 export async function getCities(): Promise<City[]> {
   if (cache) return cache;
+  cache = parseCities(await fetchHtml(`${BASE_URL}/citta`));
+  return cache;
+}
 
-  const html = await fetchHtml(`${BASE_URL}/citta`);
+/** Parses the /citta page: region headings followed by their city links. */
+export function parseCities(html: string): City[] {
   const $ = cheerio.load(html);
 
   const cities: City[] = [];
@@ -32,6 +31,5 @@ export async function getCities(): Promise<City[]> {
     cities.push({ name, slug, region });
   });
 
-  cache = cities;
   return cities;
 }

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 4 52 52" fill="none">
+  <circle cx="30" cy="30" r="25.25" fill="#ffffff" />
+  <g stroke="#0f172a" stroke-width="2.5">
+    <circle cx="30" cy="30" r="24" />
+    <circle cx="30" cy="30" r="16" />
+  </g>
+  <text
+    x="30"
+    y="30"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-weight="900"
+    font-size="32"
+    fill="#dc2626"
+  >S</text>
+</svg>

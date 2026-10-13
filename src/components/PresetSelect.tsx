@@ -38,14 +38,16 @@ const PresetSelect = ({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className="min-w-56 justify-between font-normal"
-        >
-          <span className="truncate">{label}</span>
-          <ChevronDown className="w-4 h-4 opacity-60" />
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            className="min-w-56 justify-between font-normal"
+          />
+        }
+      >
+        <span className="truncate">{label}</span>
+        <ChevronDown className="w-4 h-4 opacity-60" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-1">
         {presets.length === 0 ? (
@@ -73,24 +75,31 @@ const PresetSelect = ({
                   <div className="font-medium text-sm truncate">{p.name}</div>
                   <div className="text-xs text-muted-foreground truncate">
                     {p.city || "—"} · {p.flyers.length} volantin
-                    {p.flyers.length === 1 ? "o" : "i"} · {p.products.length} prodott
+                    {p.flyers.length === 1 ? "o" : "i"} · {p.products.length}{" "}
+                    prodott
                     {p.products.length === 1 ? "o" : "i"}
                   </div>
                 </button>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Azioni preset"
-                      className="p-1 rounded hover:bg-background/80"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-label="Azioni preset"
+                        className="p-1 rounded hover:bg-background/80"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    }
+                  >
+                    <MoreVertical className="w-4 h-4" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" sideOffset={4}>
+                  <DropdownMenuContent
+                    align="end"
+                    sideOffset={4}
+                    className="w-auto"
+                  >
                     <DropdownMenuItem
-                      onSelect={() => {
+                      onClick={() => {
                         setOpen(false);
                         onRequestRename(p.id);
                       }}
@@ -99,7 +108,7 @@ const PresetSelect = ({
                       Rinomina
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onSelect={() => {
+                      onClick={() => {
                         setOpen(false);
                         onRequestDuplicate(p.id);
                       }}
@@ -110,7 +119,7 @@ const PresetSelect = ({
                     {!p.default && (
                       <DropdownMenuItem
                         variant="destructive"
-                        onSelect={() => {
+                        onClick={() => {
                           setOpen(false);
                           onRequestDelete(p.id);
                         }}

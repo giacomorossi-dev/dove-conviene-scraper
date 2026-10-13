@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { CATEGORIES } from "./categories";
-import type { Flyer as FlyerI } from "./components/Flyer";
-import type { ProductQuery } from "./components/ProductsChipsInput";
+import { CATEGORIES } from "@shared/categories";
+import type {
+  Flyer as FlyerI,
+  ProductQuery,
+  ScrapeMessage,
+  ScrapeRequest,
+} from "@shared/types";
 import Wizard from "./components/Wizard";
 import ListsView from "./components/ListsView";
 import Topbar, { type View } from "./components/Topbar";
+import Bottombar from "./components/Bottombar";
+import Footer from "./components/Footer";
 import PresetNameDialog from "./components/PresetNameDialog";
 import PresetDeleteDialog from "./components/PresetDeleteDialog";
 import ListEditDialog from "./components/ListEditDialog";
@@ -30,8 +36,23 @@ import {
   type RowData,
 } from "./lib/lists";
 
-const initialPresets = loadPresets();
-const initialActiveId = loadActivePresetId();
+const storedPresets = loadPresets();
+// First run: seed the default preset up front instead of in a mount effect.
+const initialPresets =
+  storedPresets.length > 0
+    ? storedPresets
+    : [
+        createPreset({
+          name: DEFAULT_PRESET_NAME,
+          city: "Rimini",
+          citySlug: "rimini",
+          flyers: [],
+          products: [],
+          default: true,
+        }),
+      ];
+const initialActiveId =
+  storedPresets.length > 0 ? loadActivePresetId() : initialPresets[0].id;
 const initialActive =
   initialPresets.find((p) => p.id === initialActiveId) ?? null;
 
@@ -93,22 +114,6 @@ const App = () => {
   }, [lists]);
 
   useEffect(() => {
-    if (presets.length === 0) {
-      const initial = createPreset({
-        name: DEFAULT_PRESET_NAME,
-        city,
-        citySlug,
-        flyers,
-        products,
-        default: true,
-      });
-      setPresets([initial]);
-      setActiveId(initial.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     Promise.all(
       CATEGORIES.map((c) =>
         fetch(`/api/retailers/${slugOf(c)}`)
@@ -123,14 +128,45 @@ const App = () => {
 
   const onRun = async () => {
     setLoading(true);
-    const res = await fetch("/api/scraper", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ city: citySlug || city, flyers, products }),
-    });
-    const data = await res.json();
-    setResults(data.flyers);
-    setLoading(false);
+    setResults([]);
+    try {
+      const request: ScrapeRequest = {
+        city: citySlug || city,
+        flyers,
+        products,
+      };
+      const res = await fetch("/api/scraper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      if (!res.ok || !res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const msg = JSON.parse(line) as ScrapeMessage;
+            if ("flyer" in msg) {
+              const { flyer } = msg;
+              setResults((prev) => [...prev, flyer]);
+            }
+          } catch {
+            /* skip malformed line */
+          }
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onToggleFlyer = (flyer: FlyerI) => {
@@ -252,9 +288,7 @@ const App = () => {
     if (!editListId) return;
     setLists(
       lists.map((l) =>
-        l.id === editListId
-          ? { ...l, name, color, updatedAt: Date.now() }
-          : l
+        l.id === editListId ? { ...l, name, color, updatedAt: Date.now() } : l
       )
     );
     setEditListId(null);
@@ -300,18 +334,8 @@ const App = () => {
 
   return (
     <>
-      <Topbar
-        presets={presets}
-        activeId={activeId}
-        view={view}
-        onChangeView={setView}
-        onSelectPreset={onSelectPreset}
-        onRequestCreate={onRequestCreate}
-        onRequestRename={(id) => setRenameTarget(id)}
-        onRequestDuplicate={onRequestDuplicate}
-        onRequestDelete={(id) => setDeleteTarget(id)}
-      />
-      <main className="pt-28 pb-10">
+      <Topbar view={view} onChangeView={setView} />
+      <main className="pt-20 pb-24">
         <div className="container">
           {view === "lists" ? (
             <ListsView
@@ -344,11 +368,6 @@ const App = () => {
               products={products}
               onProductsChange={setProducts}
               results={results}
-              loading={loading}
-              onRun={onRun}
-              presetDirty={!!active && dirty}
-              onUpdatePreset={onUpdateActive}
-              onResetPreset={onResetToActive}
               lists={lists}
               onAddToList={onAddToList}
               onRequestNewList={onRequestNewList}
@@ -359,6 +378,24 @@ const App = () => {
           )}
         </div>
       </main>
+
+      <Footer />
+
+      <Bottombar
+        view={view}
+        presets={presets}
+        activeId={activeId}
+        onSelectPreset={onSelectPreset}
+        onRequestRename={(id) => setRenameTarget(id)}
+        onRequestDuplicate={onRequestDuplicate}
+        onRequestDelete={(id) => setDeleteTarget(id)}
+        onRequestCreate={onRequestCreate}
+        loading={loading}
+        onRun={onRun}
+        dirty={!!active && dirty}
+        onUpdatePreset={onUpdateActive}
+        onResetPreset={onResetToActive}
+      />
 
       <PresetNameDialog
         open={createOpen}
@@ -439,8 +476,8 @@ const App = () => {
         description={
           removeItemTarget && (
             <>
-              Rimuovere <strong>«{removeItemTarget.row.productName}»</strong>{" "}
-              da <strong>«{removeItemTarget.list.name}»</strong>?
+              Rimuovere <strong>«{removeItemTarget.row.productName}»</strong> da{" "}
+              <strong>«{removeItemTarget.list.name}»</strong>?
             </>
           )
         }

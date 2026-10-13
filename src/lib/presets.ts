@@ -1,5 +1,4 @@
-import type { Flyer } from "@/components/Flyer";
-import type { ProductQuery } from "@/components/ProductsChipsInput";
+import type { Flyer, ProductQuery } from "@shared/types";
 
 export interface Preset {
   id: string;
@@ -57,7 +56,9 @@ export function saveActivePresetId(id: string | null): void {
   else localStorage.removeItem(ACTIVE_KEY);
 }
 
-export function createPreset(input: Omit<Preset, "id" | "createdAt" | "updatedAt">): Preset {
+export function createPreset(
+  input: Omit<Preset, "id" | "createdAt" | "updatedAt">
+): Preset {
   const now = Date.now();
   return {
     ...input,
@@ -69,8 +70,7 @@ export function createPreset(input: Omit<Preset, "id" | "createdAt" | "updatedAt
 
 const flyerKey = (f: Flyer): string => f.name;
 
-const productKey = (p: ProductQuery): string =>
-  `${p.name}|${p.maxPrice ?? ""}`;
+const productKey = (p: ProductQuery): string => `${p.name}|${p.maxPrice ?? ""}`;
 
 const setEq = <T>(a: T[], b: T[], keyOf: (x: T) => string): boolean => {
   if (a.length !== b.length) return false;

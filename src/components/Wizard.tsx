@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Accordion,
@@ -9,11 +8,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CATEGORIES } from "@/categories";
-import Flyer, { type Flyer as FlyerI } from "./Flyer";
-import ProductsChipsInput, {
-  type ProductQuery,
-} from "./ProductsChipsInput";
+import { CATEGORIES } from "@shared/categories";
+import type { Flyer as FlyerI, ProductQuery } from "@shared/types";
+import Flyer from "./Flyer";
+import ProductsChipsInput from "./ProductsChipsInput";
 import CityAutocomplete from "./CityAutocomplete";
 import ResultsTable from "./ResultsTable";
 import type { List, RowData } from "@/lib/lists";
@@ -29,11 +27,6 @@ interface Props {
   products: ProductQuery[];
   onProductsChange: (next: ProductQuery[]) => void;
   results: FlyerI[];
-  loading: boolean;
-  onRun: () => void;
-  presetDirty: boolean;
-  onUpdatePreset: () => void;
-  onResetPreset: () => void;
   lists: List[];
   onAddToList: (listId: string, row: RowData) => void;
   onRequestNewList: (row: RowData) => void;
@@ -50,11 +43,6 @@ const Wizard = ({
   products,
   onProductsChange,
   results,
-  loading,
-  onRun,
-  presetDirty,
-  onUpdatePreset,
-  onResetPreset,
   lists,
   onAddToList,
   onRequestNewList,
@@ -85,7 +73,7 @@ const Wizard = ({
         <CardHeader>
           <CardTitle>1 - Seleziona una località</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="gap-2">
           <Label>Località</Label>
           <CityAutocomplete
             value={city}
@@ -105,7 +93,7 @@ const Wizard = ({
             className="space-y-2"
             onValueChange={setOpenAccordion}
             value={openAccordion}
-            type="multiple"
+            multiple
           >
             {CATEGORIES.map((category) => {
               const items = retailersByCategory[category.name] ?? [];
@@ -157,12 +145,9 @@ const Wizard = ({
         <CardHeader>
           <CardTitle>3 - Inserisci i prodotti</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="gap-2">
           <Label>Prodotti</Label>
-          <ProductsChipsInput
-            value={products}
-            onChange={onProductsChange}
-          />
+          <ProductsChipsInput value={products} onChange={onProductsChange} />
         </CardContent>
       </Card>
 
@@ -180,27 +165,6 @@ const Wizard = ({
           />
         </CardContent>
       </Card>
-
-      <div className="flex flex-wrap items-center gap-2 pt-2">
-        <Button
-          disabled={loading}
-          className="flex gap-2 items-center"
-          onClick={onRun}
-        >
-          <span>Run</span>
-          {loading && <Spinner />}
-        </Button>
-        {presetDirty && (
-          <>
-            <Button variant="outline" onClick={onUpdatePreset}>
-              Aggiorna preset
-            </Button>
-            <Button variant="ghost" onClick={onResetPreset}>
-              Reimposta preset
-            </Button>
-          </>
-        )}
-      </div>
     </div>
   );
 };

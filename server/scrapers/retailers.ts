@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
-import type { Category } from "../config";
+import type { Category } from "../../shared/categories";
+import type { Flyer } from "../../shared/types";
 import { absoluteUrl, collapseSpaces, fetchHtml } from "../http";
-import type { Flyer } from "./flyers";
 
 const cache = new Map<string, Flyer[]>();
 
@@ -11,7 +11,13 @@ export async function getRetailersByCategory(
   const cached = cache.get(category.url);
   if (cached) return cached;
 
-  const html = await fetchHtml(category.url);
+  const retailers = parseRetailers(await fetchHtml(category.url), category);
+  cache.set(category.url, retailers);
+  return retailers;
+}
+
+/** Parses a category page into its retailers, deduped by slug and sorted. */
+export function parseRetailers(html: string, category: Category): Flyer[] {
   const $ = cheerio.load(html);
 
   const seen = new Set<string>();
@@ -34,6 +40,5 @@ export async function getRetailersByCategory(
   });
 
   retailers.sort((a, b) => a.name.localeCompare(b.name, "it"));
-  cache.set(category.url, retailers);
   return retailers;
 }

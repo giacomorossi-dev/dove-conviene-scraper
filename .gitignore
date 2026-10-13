@@ -25,3 +25,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local files kept out of the repo
+/*.png
+/Prodotti casa.xlsx

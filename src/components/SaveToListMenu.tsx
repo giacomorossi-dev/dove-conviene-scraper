@@ -2,6 +2,7 @@ import { Heart, Plus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -46,32 +47,33 @@ const SaveToListMenu = ({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center text-gray-400 hover:text-pink-500 transition-colors"
-          aria-label="Aggiungi a una lista"
-        >
-          <Heart className="w-5 h-5" />
-        </button>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="inline-flex items-center text-gray-400 hover:text-pink-500 transition-colors"
+            aria-label="Aggiungi a una lista"
+          />
+        }
+      >
+        <Heart className="w-5 h-5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
-        <DropdownMenuLabel>Aggiungi alla lista</DropdownMenuLabel>
-        {lists.length > 0 && <DropdownMenuSeparator />}
-        {lists.map((l) => (
-          <DropdownMenuItem
-            key={l.id}
-            onSelect={() => onAddToList(l.id, row)}
-          >
-            <span
-              className="w-3 h-3 rounded-sm shrink-0"
-              style={{ backgroundColor: l.color }}
-            />
-            <span className="truncate">{l.name}</span>
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent align="end" className="w-auto min-w-44">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Aggiungi alla lista</DropdownMenuLabel>
+          {lists.length > 0 && <DropdownMenuSeparator />}
+          {lists.map((l) => (
+            <DropdownMenuItem key={l.id} onClick={() => onAddToList(l.id, row)}>
+              <span
+                className="w-3 h-3 rounded-sm shrink-0"
+                style={{ backgroundColor: l.color }}
+              />
+              <span className="truncate">{l.name}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => onRequestNewList(row)}>
+        <DropdownMenuItem onClick={() => onRequestNewList(row)}>
           <Plus className="w-4 h-4" />
           Nuova lista
         </DropdownMenuItem>

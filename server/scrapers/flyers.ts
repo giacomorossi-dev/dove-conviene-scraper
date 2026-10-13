@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
-import { BASE_URL, type Category } from "../config";
+import { BASE_URL, type Category } from "../../shared/categories";
+import type { Flyer, Product, ProductQuery } from "../../shared/types";
 import {
   absoluteUrl,
   collapseSpaces,
@@ -8,30 +9,15 @@ import {
   slugify,
 } from "../http";
 
-export interface Product {
-  name: string;
-  imageUrl: string | null;
-  price: number | null;
-}
-
-export interface Flyer {
-  name: string;
-  imageUrl: string;
-  category: Category;
-  url?: string;
-  validUntil?: string;
-  products?: Product[];
-}
-
-export interface ProductQuery {
+export interface NormalizedQuery {
   name: string;
   maxPrice?: number;
 }
 
-interface NormalizedQuery {
-  name: string;
-  maxPrice?: number;
-}
+export const normalizeQueries = (products: ProductQuery[]): NormalizedQuery[] =>
+  products
+    .map((p) => ({ name: normalize(p.name), maxPrice: p.maxPrice }))
+    .filter((q) => q.name);
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -59,18 +45,23 @@ async function getFlyersByCategory(
   wanted: Flyer[]
 ): Promise<Flyer[]> {
   const url = `${BASE_URL}/${citySlug}/${categorySlug(category)}`;
-  const html = await fetchHtml(url);
+  const cards = parseFlyerCards(await fetchHtml(url), category);
+
+  const wantedNames = wanted.map((f) => f.name);
+  return cards.filter((f) => wantedNames.some((n) => f.name.includes(n)));
+}
+
+/** Parses the flyer cards of a city/category page. */
+export function parseFlyerCards(html: string, category: Category): Flyer[] {
   const $ = cheerio.load(html);
 
-  const cards: Flyer[] = $(".flyersGrid__item")
+  return $(".flyersGrid__item")
     .toArray()
     .map((el) => {
       const $el = $(el);
       const name = collapseSpaces($el.find(".flyerCard__titleText").text());
       const href = $el.find("a.flyerCard__body").attr("href") ?? "";
-      const dataBg = $el
-        .find(".flyerCard__blurredBackground")
-        .attr("data-bg");
+      const dataBg = $el.find(".flyerCard__blurredBackground").attr("data-bg");
       return {
         name,
         url: href ? absoluteUrl(href) : "",
@@ -78,12 +69,9 @@ async function getFlyersByCategory(
         category,
       };
     });
-
-  const wantedNames = wanted.map((f) => f.name);
-  return cards.filter((f) => wantedNames.some((n) => f.name.includes(n)));
 }
 
-interface FlyerData {
+export interface FlyerData {
   products: Product[];
   validUntil: string | null;
 }
@@ -93,7 +81,17 @@ async function getFlyerData(
   queries: NormalizedQuery[]
 ): Promise<FlyerData> {
   if (!flyer.url) return { products: [], validUntil: null };
-  const html = await fetchHtml(flyer.url);
+  return parseFlyerData(await fetchHtml(flyer.url), queries);
+}
+
+/**
+ * Extracts the products matching `queries` (and the expiry date) from the
+ * JSON-LD blocks of a flyer page.
+ */
+export function parseFlyerData(
+  html: string,
+  queries: NormalizedQuery[]
+): FlyerData {
   const $ = cheerio.load(html);
 
   const products: Product[] = [];
@@ -153,15 +151,13 @@ async function getFlyerData(
   return { products, validUntil };
 }
 
-export async function scrapeFlyers(
+export async function* scrapeFlyersStream(
   location: string,
   flyers: Flyer[],
   products: ProductQuery[]
-): Promise<Flyer[]> {
+): AsyncGenerator<Flyer> {
   const citySlug = slugify(location);
-  const queries: NormalizedQuery[] = products
-    .map((p) => ({ name: normalize(p.name), maxPrice: p.maxPrice }))
-    .filter((q) => q.name);
+  const queries = normalizeQueries(products);
 
   const categories = flyers.reduce<Category[]>((acc, f) => {
     if (!acc.find((c) => c.url === f.category.url)) acc.push(f.category);
@@ -183,7 +179,6 @@ export async function scrapeFlyers(
     const { products: ps, validUntil } = await getFlyerData(flyer, queries);
     flyer.products = ps;
     if (validUntil) flyer.validUntil = validUntil;
+    yield flyer;
   }
-
-  return matched;
 }
