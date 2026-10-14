@@ -3,7 +3,6 @@
 // if they fail after a refresh, the site markup changed.
 import { describe, expect, test } from "bun:test";
 import { BASE_URL, CATEGORIES } from "../../shared/categories";
-import { parseCities } from "./cities";
 import { normalizeQueries, parseFlyerCards, parseFlyerData } from "./flyers";
 import { parseRetailers } from "./retailers";
 
@@ -11,35 +10,6 @@ const fixture = (name: string) =>
   Bun.file(new URL(`./__fixtures__/${name}`, import.meta.url)).text();
 
 const category = CATEGORIES[0];
-
-describe("parseCities", async () => {
-  const cities = parseCities(await fixture("cities.html"));
-
-  test("finds hundreds of cities across all 20 Italian regions", () => {
-    expect(cities.length).toBeGreaterThan(100);
-    expect(new Set(cities.map((c) => c.region)).size).toBe(20);
-  });
-
-  test("every city has a name, a URL slug and a region", () => {
-    for (const c of cities) {
-      expect(c.name).not.toBe("");
-      expect(c.slug).toMatch(/^[a-z0-9-]+$/);
-      expect(c.region).not.toBe("");
-    }
-  });
-
-  test("includes Rimini in Emilia-Romagna", () => {
-    expect(cities).toContainEqual({
-      name: "Rimini",
-      slug: "rimini",
-      region: "Emilia-Romagna",
-    });
-  });
-
-  test("returns nothing for unrelated markup", () => {
-    expect(parseCities("<html><body><p>nope</p></body></html>")).toEqual([]);
-  });
-});
 
 describe("parseRetailers", async () => {
   const retailers = parseRetailers(await fixture("category.html"), category);
@@ -63,14 +33,18 @@ describe("parseRetailers", async () => {
 });
 
 describe("parseFlyerCards", async () => {
-  const cards = parseFlyerCards(await fixture("city-category.html"), category);
+  const cards = parseFlyerCards(
+    await fixture("nearby-category.html"),
+    category
+  );
   const withUrl = cards.filter((c) => c.url);
 
-  test("finds flyer cards linking to the city's flyers", () => {
+  test("finds flyer cards linking to the nearby flyers", () => {
     expect(withUrl.length).toBeGreaterThan(0);
     for (const c of withUrl) {
       expect(c.name).not.toBe("");
-      expect(c.url).toStartWith(`${BASE_URL}/rimini/`);
+      expect(c.url).toStartWith(`${BASE_URL}/`);
+      expect(c.url).toMatch(/[?&]flyerId=\d+/);
       expect(c.category).toBe(category);
     }
   });

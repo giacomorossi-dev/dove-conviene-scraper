@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { absoluteUrl, collapseSpaces, normalize, slugify } from "./http";
+import { absoluteUrl, collapseSpaces, normalize } from "./http";
 
 describe("collapseSpaces / normalize", () => {
   test("collapses whitespace and trims", () => {
@@ -8,18 +8,6 @@ describe("collapseSpaces / normalize", () => {
 
   test("normalize also lowercases", () => {
     expect(normalize("  Burro  DI Montagna ")).toBe("burro di montagna");
-  });
-});
-
-describe("slugify", () => {
-  test.each([
-    ["Rimini", "rimini"],
-    ["Forlì", "forli"],
-    ["Reggio nell'Emilia", "reggio-nell-emilia"],
-    ["Iper & Super", "iper-e-super"],
-    ["  Cura casa & corpo  ", "cura-casa-e-corpo"],
-  ])("%s -> %s", (input, expected) => {
-    expect(slugify(input)).toBe(expected);
   });
 });
 

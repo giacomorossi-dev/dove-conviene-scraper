@@ -1,10 +1,12 @@
-import type { Flyer, ProductQuery } from "@shared/types";
+import type { Flyer, Place, ProductQuery } from "@shared/types";
+import { samePlace } from "./places";
 
 export interface Preset {
   id: string;
   name: string;
-  city: string;
-  citySlug: string;
+  place: Place | null;
+  /** City name saved before places had coordinates; resolved on startup. */
+  legacyCity?: string;
   flyers: Flyer[];
   products: ProductQuery[];
   createdAt: number;
@@ -14,6 +16,19 @@ export interface Preset {
 
 const STORAGE_KEY = "dove-conviene:presets";
 const ACTIVE_KEY = "dove-conviene:active-preset";
+
+/** A saved preset: older versions stored a city name instead of a place. */
+type StoredPreset = Omit<Preset, "place"> & {
+  place?: Place | null;
+  city?: string;
+  citySlug?: string;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- drops the old slug
+const migrate = ({ city, citySlug, ...p }: StoredPreset): Preset =>
+  p.place !== undefined
+    ? { ...p, place: p.place }
+    : { ...p, place: null, legacyCity: city };
 
 const newId = (): string =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -27,7 +42,7 @@ export function loadPresets(): Preset[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    const list = parsed as Preset[];
+    const list = (parsed as StoredPreset[]).map(migrate);
     if (list.length > 0 && !list.some((p) => p.default)) {
       const oldest = list.reduce((a, b) =>
         a.createdAt <= b.createdAt ? a : b
@@ -80,11 +95,10 @@ const setEq = <T>(a: T[], b: T[], keyOf: (x: T) => string): boolean => {
 
 export function isPresetDirty(
   preset: Preset,
-  current: Pick<Preset, "city" | "citySlug" | "flyers" | "products">
+  current: Pick<Preset, "place" | "flyers" | "products">
 ): boolean {
   return (
-    preset.city !== current.city ||
-    preset.citySlug !== current.citySlug ||
+    !samePlace(preset.place, current.place) ||
     !setEq(preset.flyers, current.flyers, flyerKey) ||
     !setEq(preset.products, current.products, productKey)
   );

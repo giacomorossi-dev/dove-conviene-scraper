@@ -1,7 +1,7 @@
 import express from "express";
 import { CATEGORIES } from "../shared/categories";
 import type { ScrapeMessage, ScrapeRequest } from "../shared/types";
-import { getCities } from "./scrapers/cities";
+import { reversePlace, searchPlaces } from "./places";
 import { scrapeFlyersStream } from "./scrapers/flyers";
 import { getRetailersByCategory } from "./scrapers/retailers";
 
@@ -10,12 +10,29 @@ const ndjson = (msg: ScrapeMessage) => JSON.stringify(msg) + "\n";
 const app = express();
 app.use(express.json());
 
-app.get("/api/cities", async (_req, res) => {
+app.get("/api/places", async (req, res) => {
   try {
-    res.send(await getCities());
+    res.send(await searchPlaces(String(req.query.q ?? "")));
   } catch (err) {
     console.error(err);
-    res.status(500).send({ error: String(err) });
+    res.status(502).send({ error: String(err) });
+  }
+});
+
+app.get("/api/places/reverse", async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    res.status(400).send({ error: "lat and lng are required" });
+    return;
+  }
+  try {
+    const place = await reversePlace(lat, lng);
+    if (place) res.send(place);
+    else res.status(404).send({ error: "no place found here" });
+  } catch (err) {
+    console.error(err);
+    res.status(502).send({ error: String(err) });
   }
 });
 
@@ -36,12 +53,16 @@ app.get("/api/retailers/:slug", async (req, res) => {
 });
 
 app.post("/api/scraper", async (req, res) => {
-  const { city, flyers, products } = req.body as ScrapeRequest;
+  const { place, flyers, products } = req.body as ScrapeRequest;
+  if (!Number.isFinite(place?.lat) || !Number.isFinite(place?.lng)) {
+    res.status(400).send({ error: "place with lat/lng is required" });
+    return;
+  }
   res.setHeader("content-type", "application/x-ndjson");
   res.setHeader("cache-control", "no-cache");
   res.setHeader("x-accel-buffering", "no");
   try {
-    for await (const flyer of scrapeFlyersStream(city, flyers, products)) {
+    for await (const flyer of scrapeFlyersStream(place, flyers, products)) {
       res.write(ndjson({ flyer }));
       // flush ASAP so the client sees rows progressively
       // @ts-expect-error: flush is added by some middleware/proxies

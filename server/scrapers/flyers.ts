@@ -1,13 +1,8 @@
 import * as cheerio from "cheerio";
 import { BASE_URL, type Category } from "../../shared/categories";
-import type { Flyer, Product, ProductQuery } from "../../shared/types";
-import {
-  absoluteUrl,
-  collapseSpaces,
-  fetchHtml,
-  normalize,
-  slugify,
-} from "../http";
+import type { Flyer, Place, Product, ProductQuery } from "../../shared/types";
+import { absoluteUrl, collapseSpaces, fetchHtml, normalize } from "../http";
+import { openPlaceSession, type PlaceSession } from "../session";
 
 export interface NormalizedQuery {
   name: string;
@@ -40,18 +35,19 @@ function categorySlug(category: Category): string {
 }
 
 async function getFlyersByCategory(
-  citySlug: string,
+  session: PlaceSession,
   category: Category,
   wanted: Flyer[]
 ): Promise<Flyer[]> {
-  const url = `${BASE_URL}/${citySlug}/${categorySlug(category)}`;
-  const cards = parseFlyerCards(await fetchHtml(url), category);
+  // With a positioned session this is the "nelle vicinanze" page.
+  const url = `${BASE_URL}/${categorySlug(category)}`;
+  const cards = parseFlyerCards(await session.fetchHtml(url), category);
 
   const wantedNames = wanted.map((f) => f.name);
   return cards.filter((f) => wantedNames.some((n) => f.name.includes(n)));
 }
 
-/** Parses the flyer cards of a city/category page. */
+/** Parses the flyer cards of a category page. */
 export function parseFlyerCards(html: string, category: Category): Flyer[] {
   const $ = cheerio.load(html);
 
@@ -152,11 +148,11 @@ export function parseFlyerData(
 }
 
 export async function* scrapeFlyersStream(
-  location: string,
+  place: Place,
   flyers: Flyer[],
   products: ProductQuery[]
 ): AsyncGenerator<Flyer> {
-  const citySlug = slugify(location);
+  const session = await openPlaceSession(place);
   const queries = normalizeQueries(products);
 
   const categories = flyers.reduce<Category[]>((acc, f) => {
@@ -168,7 +164,7 @@ export async function* scrapeFlyersStream(
   for (const category of categories) {
     matched.push(
       ...(await getFlyersByCategory(
-        citySlug,
+        session,
         category,
         flyers.filter((f) => f.category.name === category.name)
       ))

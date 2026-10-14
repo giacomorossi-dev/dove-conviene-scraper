@@ -4,23 +4,24 @@
 import { BASE_URL, CATEGORIES } from "../shared/categories";
 import { fetchHtml } from "../server/http";
 import { parseFlyerCards } from "../server/scrapers/flyers";
+import { openPlaceSession } from "../server/session";
 
 const DIR = new URL("../server/scrapers/__fixtures__/", import.meta.url);
-const CITY = "rimini";
+const RIMINI = { name: "Rimini", zip: "47921", lat: 44.0594, lng: 12.5684 };
 const category = CATEGORIES[0];
 const categorySlug = category.url.split("/").pop();
 
 const save = async (name: string, html: string) => {
   await Bun.write(new URL(name, DIR), html);
-  console.log(`${name.padEnd(20)} ${(html.length / 1024).toFixed(0)} kB`);
+  console.log(`${name.padEnd(22)} ${(html.length / 1024).toFixed(0)} kB`);
 };
 
-await save("cities.html", await fetchHtml(`${BASE_URL}/citta`));
 await save("category.html", await fetchHtml(category.url));
 
-const cityPage = await fetchHtml(`${BASE_URL}/${CITY}/${categorySlug}`);
-await save("city-category.html", cityPage);
+const session = await openPlaceSession(RIMINI);
+const nearbyPage = await session.fetchHtml(`${BASE_URL}/${categorySlug}`);
+await save("nearby-category.html", nearbyPage);
 
-const flyer = parseFlyerCards(cityPage, category).find((f) => f.url);
-if (!flyer?.url) throw new Error("No flyer card with a URL on the city page");
+const flyer = parseFlyerCards(nearbyPage, category).find((f) => f.url);
+if (!flyer?.url) throw new Error("No flyer card with a URL on the nearby page");
 await save("flyer.html", await fetchHtml(flyer.url));

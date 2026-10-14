@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CATEGORIES } from "@shared/categories";
 import type {
   Flyer as FlyerI,
+  Place,
   ProductQuery,
   ScrapeMessage,
   ScrapeRequest,
@@ -35,6 +36,7 @@ import {
   type List,
   type RowData,
 } from "./lib/lists";
+import { DEFAULT_PLACE, resolveCityName } from "./lib/places";
 
 const storedPresets = loadPresets();
 // First run: seed the default preset up front instead of in a mount effect.
@@ -44,8 +46,7 @@ const initialPresets =
     : [
         createPreset({
           name: DEFAULT_PRESET_NAME,
-          city: "Rimini",
-          citySlug: "rimini",
+          place: DEFAULT_PLACE,
           flyers: [],
           products: [],
           default: true,
@@ -60,8 +61,9 @@ const slugOf = (c: { url: string }) =>
   c.url.replace(/\/$/, "").split("/").pop()!;
 
 const App = () => {
-  const [city, setCity] = useState(initialActive?.city ?? "Rimini");
-  const [citySlug, setCitySlug] = useState(initialActive?.citySlug ?? "rimini");
+  const [place, setPlace] = useState<Place | null>(
+    initialActive ? initialActive.place : DEFAULT_PLACE
+  );
   const [flyers, setFlyers] = useState<FlyerI[]>(initialActive?.flyers ?? []);
   const [products, setProducts] = useState<ProductQuery[]>(
     initialActive?.products ?? []
@@ -100,7 +102,7 @@ const App = () => {
   const editListTarget = lists.find((l) => l.id === editListId) ?? null;
   const deleteListTarget = lists.find((l) => l.id === deleteListId) ?? null;
   const dirty = active
-    ? isPresetDirty(active, { city, citySlug, flyers, products })
+    ? isPresetDirty(active, { place, flyers, products })
     : false;
 
   useEffect(() => {
@@ -112,6 +114,30 @@ const App = () => {
   useEffect(() => {
     saveLists(lists);
   }, [lists]);
+
+  // Presets saved before places had coordinates only know a city name: look
+  // it up once and store the place.
+  useEffect(() => {
+    const legacy = initialPresets.filter((p) => !p.place && p.legacyCity);
+    if (legacy.length === 0) return;
+    Promise.all(
+      legacy.map(
+        async (p) => [p.id, await resolveCityName(p.legacyCity!)] as const
+      )
+    ).then((entries) => {
+      const resolved = new Map(
+        entries.filter((e): e is [string, Place] => e[1] !== null)
+      );
+      setPresets((prev) =>
+        prev.map((p) => {
+          const found = resolved.get(p.id);
+          return found ? { ...p, place: found, legacyCity: undefined } : p;
+        })
+      );
+      const activePlace = initialActiveId && resolved.get(initialActiveId);
+      if (activePlace) setPlace((cur) => cur ?? activePlace);
+    });
+  }, []);
 
   useEffect(() => {
     Promise.all(
@@ -127,14 +153,11 @@ const App = () => {
   // ---- main wizard handlers ----
 
   const onRun = async () => {
+    if (!place) return;
     setLoading(true);
     setResults([]);
     try {
-      const request: ScrapeRequest = {
-        city: citySlug || city,
-        flyers,
-        products,
-      };
+      const request: ScrapeRequest = { place, flyers, products };
       const res = await fetch("/api/scraper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,8 +203,7 @@ const App = () => {
   // ---- preset handlers ----
 
   const applyPreset = (preset: Preset) => {
-    setCity(preset.city);
-    setCitySlug(preset.citySlug);
+    setPlace(preset.place);
     setFlyers(preset.flyers);
     setProducts(preset.products);
     setActiveId(preset.id);
@@ -196,12 +218,11 @@ const App = () => {
     const source = sourceId ? presets.find((p) => p.id === sourceId) : null;
     const data = source
       ? {
-          city: source.city,
-          citySlug: source.citySlug,
+          place: source.place,
           flyers: source.flyers,
           products: source.products,
         }
-      : { city, citySlug, flyers, products };
+      : { place, flyers, products };
     const next = createPreset({ name, ...data });
     setPresets([...presets, next]);
     applyPreset(next);
@@ -246,7 +267,7 @@ const App = () => {
     setPresets(
       presets.map((p) =>
         p.id === active.id
-          ? { ...p, city, citySlug, flyers, products, updatedAt: Date.now() }
+          ? { ...p, place, flyers, products, updatedAt: Date.now() }
           : p
       )
     );
@@ -337,15 +358,8 @@ const App = () => {
       <Topbar
         view={view}
         onChangeView={setView}
-        city={city}
-        onCitySelect={({ name, slug }) => {
-          setCity(name);
-          setCitySlug(slug);
-        }}
-        onCityChange={(raw) => {
-          setCity(raw);
-          setCitySlug("");
-        }}
+        place={place}
+        onPlaceChange={setPlace}
       />
       {/* The topbar wraps the location onto a second row below `sm`. */}
       <main className="pt-32 pb-24 sm:pt-20">

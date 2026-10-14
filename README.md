@@ -1,7 +1,7 @@
 # Scaper Conviene
 
 Progetto personale che cerca le offerte nei volantini di
-[doveconviene.it](https://www.doveconviene.it): scegli città, insegne e prodotti
+[doveconviene.it](https://www.doveconviene.it): scegli località (città o CAP), insegne e prodotti
 (con prezzo massimo opzionale) e ottieni una tabella dei risultati, aggiornata
 in streaming mentre i volantini vengono letti. I prodotti si possono salvare in
 liste e le ricerche in preset (salvati in `localStorage`).
@@ -10,6 +10,8 @@ liste e le ricerche in preset (salvati in `localStorage`).
 
 - **Client**: React 19, Vite 8, Tailwind CSS 4, shadcn/ui su Base UI (stile `base-vega`)
 - **Server**: Bun + Express 5, scraping con Cheerio (dati strutturati JSON-LD delle pagine)
+- **Località**: suggerimenti di comuni, frazioni e CAP da [Photon](https://photon.komoot.io)
+  (OpenStreetMap); i volantini sono quelli "nelle vicinanze" delle coordinate scelte
 - **Tooling**: TypeScript 7, ESLint 10, Biome (solo formatter), `bun test`
 
 ## Requisiti
@@ -44,7 +46,9 @@ Vite inoltra `/api` al server.
 ```
 shared/            tipi e categorie usati da server e client (alias @shared nel client)
 server/            API Express (index.ts) e scraper
-  scrapers/        parser di città, insegne, volantini + test e __fixtures__
+  places.ts        suggerimenti località e ricerca inversa (Photon)
+  session.ts       sessione dc posizionata sulle coordinate scelte
+  scrapers/        parser di insegne e volantini + test e __fixtures__
 scripts/           script di manutenzione (aggiornamento fixture)
 src/               app React
   components/ui/   componenti shadcn (generati dalla CLI)

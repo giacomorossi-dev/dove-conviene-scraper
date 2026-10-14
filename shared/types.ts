@@ -1,10 +1,19 @@
 // Domain and API types shared by the API server and the client.
 import type { Category } from "./categories";
 
-export interface City {
+/** Where to look for flyers: a town or one of its postal codes. */
+export interface Place {
   name: string;
-  slug: string;
-  region: string;
+  /** Set when a postal code was picked (or found via geolocation). */
+  zip: string | null;
+  lat: number;
+  lng: number;
+}
+
+/** A location suggestion from GET /api/places. */
+export interface PlaceSuggestion extends Place {
+  /** dc-style text: "Reggiolo, Reggio nell'Emilia, Italia", "47921, Rimini, Italia". */
+  label: string;
 }
 
 export interface Product {
@@ -14,8 +23,8 @@ export interface Product {
 }
 
 /**
- * A retailer (from /api/retailers) or, once scraped, one of its flyers in a
- * city with the matching products.
+ * A retailer (from /api/retailers) or, once scraped, one of its flyers near
+ * the chosen place with the matching products.
  */
 export interface Flyer {
   name: string;
@@ -33,7 +42,7 @@ export interface ProductQuery {
 
 /** Body of POST /api/scraper. */
 export interface ScrapeRequest {
-  city: string;
+  place: Place;
   flyers: Flyer[];
   products: ProductQuery[];
 }
