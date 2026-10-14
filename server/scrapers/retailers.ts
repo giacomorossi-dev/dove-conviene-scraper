@@ -1,31 +1,23 @@
 import * as cheerio from "cheerio";
 import type { Category } from "../../shared/categories";
-import type { Flyer } from "../../shared/types";
-import { absoluteUrl, collapseSpaces, fetchHtml } from "../http";
+import type { Retailer } from "../../shared/types";
+import { absoluteUrl, collapseSpaces } from "../http";
 
-const cache = new Map<string, Flyer[]>();
-
-export async function getRetailersByCategory(
-  category: Category
-): Promise<Flyer[]> {
-  const cached = cache.get(category.url);
-  if (cached) return cached;
-
-  const retailers = parseRetailers(await fetchHtml(category.url), category);
-  cache.set(category.url, retailers);
-  return retailers;
-}
-
-/** Parses a category page into its retailers, deduped by slug and sorted. */
-export function parseRetailers(html: string, category: Category): Flyer[] {
+/**
+ * Parses the retailers of a category page (the ones with flyers shown on it),
+ * deduped by slug and sorted by name.
+ */
+export function parseRetailers(html: string, category: Category): Retailer[] {
   const $ = cheerio.load(html);
 
   const seen = new Set<string>();
-  const retailers: Flyer[] = [];
+  const retailers: Retailer[] = [];
 
   $('a.flyerCard__title[data-linkType="retailer"]').each((_, el) => {
     const $el = $(el);
-    const slug = ($el.attr("href") ?? "").match(/^\/volantino\/([^/?#]+)/)?.[1];
+    const slug = ($el.attr("href") ?? "").match(
+      /^\/(?:volantino|offerte|catalogo)\/([^/?#]+)/
+    )?.[1];
     if (!slug || seen.has(slug)) return;
 
     const name = collapseSpaces($el.find("h3.flyerCard__titleText").text());
@@ -36,7 +28,7 @@ export function parseRetailers(html: string, category: Category): Flyer[] {
     const imageUrl = raw ? absoluteUrl(raw) : "";
 
     seen.add(slug);
-    retailers.push({ name, imageUrl, category });
+    retailers.push({ name, slug, imageUrl, category });
   });
 
   retailers.sort((a, b) => a.name.localeCompare(b.name, "it"));

@@ -1,8 +1,7 @@
 import * as cheerio from "cheerio";
-import { BASE_URL, type Category } from "../../shared/categories";
-import type { Flyer, Place, Product, ProductQuery } from "../../shared/types";
+import type { Category } from "../../shared/categories";
+import type { Flyer, Product, ProductQuery } from "../../shared/types";
 import { absoluteUrl, collapseSpaces, fetchHtml, normalize } from "../http";
-import { openPlaceSession, type PlaceSession } from "../session";
 
 export interface NormalizedQuery {
   name: string;
@@ -30,23 +29,6 @@ const getStringArray = (v: unknown): string[] => {
   return [];
 };
 
-function categorySlug(category: Category): string {
-  return category.url.replace(`${BASE_URL}/`, "").replace(/\/$/, "");
-}
-
-async function getFlyersByCategory(
-  session: PlaceSession,
-  category: Category,
-  wanted: Flyer[]
-): Promise<Flyer[]> {
-  // With a positioned session this is the "nelle vicinanze" page.
-  const url = `${BASE_URL}/${categorySlug(category)}`;
-  const cards = parseFlyerCards(await session.fetchHtml(url), category);
-
-  const wantedNames = wanted.map((f) => f.name);
-  return cards.filter((f) => wantedNames.some((n) => f.name.includes(n)));
-}
-
 /** Parses the flyer cards of a category page. */
 export function parseFlyerCards(html: string, category: Category): Flyer[] {
   const $ = cheerio.load(html);
@@ -58,8 +40,13 @@ export function parseFlyerCards(html: string, category: Category): Flyer[] {
       const name = collapseSpaces($el.find(".flyerCard__titleText").text());
       const href = $el.find("a.flyerCard__body").attr("href") ?? "";
       const dataBg = $el.find(".flyerCard__blurredBackground").attr("data-bg");
+      // /iper-e-super/conad-city/volantino/ultime-offerte-conad-city?flyerId=…
+      const slug = href.match(
+        /^(?:https?:\/\/[^/]+)?\/[^/]+\/([^/]+)\/(?:volantino|offerte|catalogo)\//
+      )?.[1];
       return {
         name,
+        slug,
         url: href ? absoluteUrl(href) : "",
         imageUrl: dataBg ? absoluteUrl(dataBg) : "",
         category,
@@ -72,7 +59,7 @@ export interface FlyerData {
   validUntil: string | null;
 }
 
-async function getFlyerData(
+export async function getFlyerData(
   flyer: Flyer,
   queries: NormalizedQuery[]
 ): Promise<FlyerData> {
@@ -145,36 +132,4 @@ export function parseFlyerData(
   });
 
   return { products, validUntil };
-}
-
-export async function* scrapeFlyersStream(
-  place: Place,
-  flyers: Flyer[],
-  products: ProductQuery[]
-): AsyncGenerator<Flyer> {
-  const session = await openPlaceSession(place);
-  const queries = normalizeQueries(products);
-
-  const categories = flyers.reduce<Category[]>((acc, f) => {
-    if (!acc.find((c) => c.url === f.category.url)) acc.push(f.category);
-    return acc;
-  }, []);
-
-  const matched: Flyer[] = [];
-  for (const category of categories) {
-    matched.push(
-      ...(await getFlyersByCategory(
-        session,
-        category,
-        flyers.filter((f) => f.category.name === category.name)
-      ))
-    );
-  }
-
-  for (const flyer of matched) {
-    const { products: ps, validUntil } = await getFlyerData(flyer, queries);
-    flyer.products = ps;
-    if (validUntil) flyer.validUntil = validUntil;
-    yield flyer;
-  }
 }

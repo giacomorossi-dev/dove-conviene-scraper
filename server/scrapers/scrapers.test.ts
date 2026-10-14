@@ -12,10 +12,14 @@ const fixture = (name: string) =>
 const category = CATEGORIES[0];
 
 describe("parseRetailers", async () => {
-  const retailers = parseRetailers(await fixture("category.html"), category);
+  const retailers = parseRetailers(
+    await fixture("nearby-category.html"),
+    category
+  );
 
-  test("finds the category retailers", () => {
+  test("finds the category retailers, each with its dc slug", () => {
     expect(retailers.length).toBeGreaterThanOrEqual(5);
+    for (const r of retailers) expect(r.slug).toMatch(/^[a-z0-9-]+$/);
   });
 
   test("dedupes and sorts by name (Italian collation)", () => {
@@ -45,6 +49,7 @@ describe("parseFlyerCards", async () => {
       expect(c.name).not.toBe("");
       expect(c.url).toStartWith(`${BASE_URL}/`);
       expect(c.url).toMatch(/[?&]flyerId=\d+/);
+      expect(c.url).toContain(`/${c.slug}/`);
       expect(c.category).toBe(category);
     }
   });

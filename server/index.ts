@@ -1,9 +1,15 @@
 import express from "express";
-import { CATEGORIES } from "../shared/categories";
+import { categoryBySlug } from "../shared/categories";
 import type { ScrapeMessage, ScrapeRequest } from "../shared/types";
+import {
+  getCatalog,
+  getCatalogStatus,
+  initCatalog,
+  updateCatalog,
+} from "./catalog-store";
 import { reversePlace, searchPlaces } from "./places";
-import { scrapeFlyersStream } from "./scrapers/flyers";
-import { getRetailersByCategory } from "./scrapers/retailers";
+import { getNearby } from "./scrapers/nearby";
+import { scrapeFlyersStream } from "./scrapers/scrape";
 
 const ndjson = (msg: ScrapeMessage) => JSON.stringify(msg) + "\n";
 
@@ -36,19 +42,33 @@ app.get("/api/places/reverse", async (req, res) => {
   }
 });
 
-app.get("/api/retailers/:slug", async (req, res) => {
-  const category = CATEGORIES.find((c) =>
-    c.url.endsWith(`/${req.params.slug}`)
-  );
-  if (!category) {
-    res.status(404).send({ error: `unknown category: ${req.params.slug}` });
+// The local national list (empty until the first build ends).
+app.get("/api/retailers", (_req, res) => {
+  res.send(getCatalog());
+});
+
+app.get("/api/retailers/status", (_req, res) => {
+  res.send(getCatalogStatus());
+});
+
+app.post("/api/retailers/update", (_req, res) => {
+  res.send(updateCatalog());
+});
+
+app.get("/api/retailers/nearby", async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  const category = categoryBySlug(String(req.query.category ?? ""));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !category) {
+    res.status(400).send({ error: "lat, lng and category are required" });
     return;
   }
   try {
-    res.send(await getRetailersByCategory(category));
+    const place = { name: "", zip: null, lat, lng };
+    res.send((await getNearby(place, category)).retailers);
   } catch (err) {
     console.error(err);
-    res.status(500).send({ error: String(err) });
+    res.status(502).send({ error: String(err) });
   }
 });
 
@@ -74,6 +94,8 @@ app.post("/api/scraper", async (req, res) => {
   }
   res.end();
 });
+
+await initCatalog();
 
 const PORT = 3000;
 app.listen(PORT, () => {

@@ -1,24 +1,21 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CATEGORIES } from "@shared/categories";
-import type { Flyer as FlyerI, ProductQuery } from "@shared/types";
-import Flyer from "./Flyer";
+import type {
+  Flyer as FlyerI,
+  Place,
+  ProductQuery,
+  Retailer,
+} from "@shared/types";
 import ProductsChipsInput from "./ProductsChipsInput";
+import RetailerPicker from "./RetailerPicker";
 import ResultsTable from "./ResultsTable";
 import type { List, RowData } from "@/lib/lists";
 
 interface Props {
   flyers: FlyerI[];
-  onToggleFlyer: (flyer: FlyerI) => void;
-  retailersByCategory: Record<string, FlyerI[]>;
+  onToggleRetailer: (retailer: Retailer) => void;
+  place: Place | null;
   products: ProductQuery[];
   onProductsChange: (next: ProductQuery[]) => void;
   results: FlyerI[];
@@ -30,8 +27,8 @@ interface Props {
 
 const Wizard = ({
   flyers,
-  onToggleFlyer,
-  retailersByCategory,
+  onToggleRetailer,
+  place,
   products,
   onProductsChange,
   results,
@@ -40,10 +37,6 @@ const Wizard = ({
   onRequestNewList,
   onRequestRemoveItem,
 }: Props) => {
-  const [openAccordion, setOpenAccordion] = useState<string[]>(
-    CATEGORIES.map((c) => c.name)
-  );
-
   const resultRows = useMemo<RowData[]>(
     () =>
       results.flatMap((flyer) =>
@@ -61,62 +54,11 @@ const Wizard = ({
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>1 - Seleziona i volantini</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion
-            className="space-y-2"
-            onValueChange={setOpenAccordion}
-            value={openAccordion}
-            multiple
-          >
-            {CATEGORIES.map((category) => {
-              const items = retailersByCategory[category.name] ?? [];
-              const selected = flyers.filter(
-                (f) => f.category.name === category.name
-              ).length;
-              return (
-                <AccordionItem key={category.name} value={category.name}>
-                  <AccordionTrigger>
-                    <span className="flex items-baseline gap-2">
-                      <span>{category.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {items.length || "…"}
-                        {selected > 0 &&
-                          ` · ${selected} selezionat${
-                            selected === 1 ? "o" : "i"
-                          }`}
-                      </span>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {items.length === 0 ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Spinner /> Caricamento retailer…
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-4">
-                        {items.map((flyer) => (
-                          <Flyer
-                            key={flyer.name}
-                            selected={
-                              !!flyers.find((f) => f.name === flyer.name)
-                            }
-                            onClick={() => onToggleFlyer(flyer)}
-                            {...flyer}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        </CardContent>
-      </Card>
+      <RetailerPicker
+        place={place}
+        flyers={flyers}
+        onToggleRetailer={onToggleRetailer}
+      />
 
       <Card>
         <CardHeader>

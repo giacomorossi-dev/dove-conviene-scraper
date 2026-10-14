@@ -16,7 +16,7 @@ const save = async (name: string, html: string) => {
   console.log(`${name.padEnd(22)} ${(html.length / 1024).toFixed(0)} kB`);
 };
 
-await save("category.html", await fetchHtml(category.url));
+await save("retailer.html", await fetchHtml(`${BASE_URL}/volantino/conad`));
 
 const session = await openPlaceSession(RIMINI);
 const nearbyPage = await session.fetchHtml(`${BASE_URL}/${categorySlug}`);

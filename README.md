@@ -29,6 +29,29 @@ bun run dev
 Avvia il server API su `:3000` e Vite su `:5173` (o la prima porta libera);
 Vite inoltra `/api` al server.
 
+### Dati locali e prima configurazione
+
+Ogni installazione tiene i propri dati nella cartella `data/` (esclusa da git;
+un'altra cartella con la variabile `DATA_DIR`):
+
+- `retailers.json`: l'elenco nazionale delle insegne di dc (~950, con categoria,
+  logo e tipo negozio/marchio). **Al primo avvio** il server lo costruisce da
+  solo dalle sitemap di dc e l'app mostra l'avanzamento; nel frattempo si
+  vedono già le insegne con volantini vicino alla località scelta.
+- `retailers.partial.json`: i progressi di una costruzione in corso, per
+  riprendere dopo un riavvio.
+
+La costruzione va **piano apposta** (una pagina ogni 1,5-2,5 s, una pausa di un
+minuto ogni 50 pagine: circa 45 minuti) e tutte le richieste a dc passano da
+un'unica coda, una alla volta: raffiche di richieste fanno rifiutare le
+connessioni e rischiano il ban dell'IP. L'elenco si **aggiorna** da solo in
+background se ha più di 7 giorni, oppure con "Aggiorna" nell'app; quello
+vecchio resta in uso finché il nuovo non è completo.
+
+Le insegne locali (catene presenti solo in una zona) non sono nelle sitemap:
+arrivano dalle pagine "nelle vicinanze" della località scelta, lette solo per
+le categorie che apri o cerchi.
+
 ## Script
 
 | Script                    | Cosa fa                                                  |
@@ -40,16 +63,19 @@ Vite inoltra `/api` al server.
 | `bun run format`          | formatta con Biome (`format:check` per il solo controllo) |
 | `bun run test`            | test dei parser e degli helper                           |
 | `bun run fixtures:update` | riscarica le pagine usate come fixture dai test          |
+| `bun run retailers:update` | ricostruisce l'elenco insegne in `data/` (a server spento) |
 
 ## Struttura
 
 ```
 shared/            tipi e categorie usati da server e client (alias @shared nel client)
 server/            API Express (index.ts) e scraper
+  catalog-store.ts elenco insegne in data/: prima costruzione e aggiornamenti
   places.ts        suggerimenti località e ricerca inversa (Photon)
   session.ts       sessione dc posizionata sulle coordinate scelte
-  scrapers/        parser di insegne e volantini + test e __fixtures__
-scripts/           script di manutenzione (aggiornamento fixture)
+  http.ts          richieste a dc: coda una alla volta e nuovi tentativi
+  scrapers/        catalogo, insegne in zona, volantini + test e __fixtures__
+scripts/           script di manutenzione (fixture, elenco insegne)
 src/               app React
   components/ui/   componenti shadcn (generati dalla CLI)
   lib/             preset e liste (localStorage)

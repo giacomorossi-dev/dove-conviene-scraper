@@ -5,7 +5,7 @@
 // pick the flyers; name and zip are just the "Sei qui" label.
 import { BASE_URL } from "../shared/categories";
 import type { Place } from "../shared/types";
-import { BROWSER_HEADERS } from "./http";
+import { BROWSER_HEADERS, fetchWithRetry, HttpError } from "./http";
 
 export interface PlaceSession {
   fetchHtml(url: string): Promise<string>;
@@ -14,7 +14,7 @@ export interface PlaceSession {
 export async function openPlaceSession(place: Place): Promise<PlaceSession> {
   const cookies = new Map<string, string>();
   const request = async (url: string, init: RequestInit = {}) => {
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       ...init,
       redirect: "manual",
       headers: {
@@ -57,7 +57,7 @@ export async function openPlaceSession(place: Place): Promise<PlaceSession> {
   return {
     async fetchHtml(url) {
       const page = await request(url);
-      if (!page.ok) throw new Error(`GET ${url} → ${page.status}`);
+      if (!page.ok) throw new HttpError(url, page.status);
       return page.text();
     },
   };

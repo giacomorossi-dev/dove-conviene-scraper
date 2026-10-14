@@ -29,3 +29,4 @@ dist-ssr
 # Local files kept out of the repo
 /*.png
 /Prodotti casa.xlsx
+/data

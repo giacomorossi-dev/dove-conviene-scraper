@@ -23,13 +23,52 @@ export interface Product {
 }
 
 /**
- * A retailer (from /api/retailers) or, once scraped, one of its flyers near
- * the chosen place with the matching products.
+ * A dc retailer ("insegna"): one per chain nationwide, e.g. "Conad City";
+ * its stores and flyers vary by area.
+ */
+export interface Retailer {
+  name: string;
+  /** dc's id for the retailer, as in /volantino/conad-city. */
+  slug: string;
+  imageUrl: string;
+  category: Category;
+  /**
+   * "store": a chain with its own points of sale; "brand": sold by other
+   * chains (Barilla, Garnier…). Unknown for local retailers not in the list.
+   */
+  kind?: "store" | "brand";
+}
+
+/** How far a build of the retailer list got. */
+export interface BuildProgress {
+  /** Reading dc's sitemaps, then every retailer page, then re-checking kinds. */
+  phase: "sitemaps" | "pages" | "kinds";
+  done: number;
+  total: number;
+}
+
+/** GET /api/retailers/status: the local retailer list and its builds. */
+export interface CatalogStatus {
+  /** When the local list was last built; null until the first build ends. */
+  updatedAt: string | null;
+  count: number;
+  /** A build is running: the first one, or an update (the old list stays). */
+  building: boolean;
+  progress: BuildProgress | null;
+  /** Why the last build failed, if it did. */
+  error: string | null;
+}
+
+/**
+ * A selected retailer or, once scraped, one of its flyers near the chosen
+ * place with the matching products.
  */
 export interface Flyer {
   name: string;
   imageUrl: string;
   category: Category;
+  /** Retailer slug; missing in presets saved before it existed. */
+  slug?: string;
   url?: string;
   validUntil?: string;
   products?: Product[];

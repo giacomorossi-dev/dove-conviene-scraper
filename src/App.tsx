@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { CATEGORIES } from "@shared/categories";
 import type {
   Flyer as FlyerI,
   Place,
   ProductQuery,
+  Retailer,
   ScrapeMessage,
   ScrapeRequest,
 } from "@shared/types";
@@ -37,6 +37,7 @@ import {
   type RowData,
 } from "./lib/lists";
 import { DEFAULT_PLACE, resolveCityName } from "./lib/places";
+import { isRetailer, toSelection } from "./lib/retailers";
 
 const storedPresets = loadPresets();
 // First run: seed the default preset up front instead of in a mount effect.
@@ -57,9 +58,6 @@ const initialActiveId =
 const initialActive =
   initialPresets.find((p) => p.id === initialActiveId) ?? null;
 
-const slugOf = (c: { url: string }) =>
-  c.url.replace(/\/$/, "").split("/").pop()!;
-
 const App = () => {
   const [place, setPlace] = useState<Place | null>(
     initialActive ? initialActive.place : DEFAULT_PLACE
@@ -70,10 +68,6 @@ const App = () => {
   );
   const [results, setResults] = useState<FlyerI[]>([]);
   const [loading, setLoading] = useState(false);
-  const [retailersByCategory, setRetailersByCategory] = useState<
-    Record<string, FlyerI[]>
-  >({});
-
   const [view, setView] = useState<View>("main");
 
   const [presets, setPresets] = useState<Preset[]>(initialPresets);
@@ -139,17 +133,6 @@ const App = () => {
     });
   }, []);
 
-  useEffect(() => {
-    Promise.all(
-      CATEGORIES.map((c) =>
-        fetch(`/api/retailers/${slugOf(c)}`)
-          .then((r) => (r.ok ? r.json() : []))
-          .then((retailers: FlyerI[]) => [c.name, retailers] as const)
-          .catch(() => [c.name, []] as const)
-      )
-    ).then((entries) => setRetailersByCategory(Object.fromEntries(entries)));
-  }, []);
-
   // ---- main wizard handlers ----
 
   const onRun = async () => {
@@ -192,11 +175,11 @@ const App = () => {
     }
   };
 
-  const onToggleFlyer = (flyer: FlyerI) => {
+  const onToggleRetailer = (retailer: Retailer) => {
     setFlyers((prev) =>
-      prev.find((f) => f.name === flyer.name)
-        ? prev.filter((f) => f.name !== flyer.name)
-        : prev.concat(flyer)
+      prev.some((f) => isRetailer(f, retailer))
+        ? prev.filter((f) => !isRetailer(f, retailer))
+        : prev.concat(toSelection(retailer))
     );
   };
 
@@ -380,8 +363,8 @@ const App = () => {
           ) : (
             <Wizard
               flyers={flyers}
-              onToggleFlyer={onToggleFlyer}
-              retailersByCategory={retailersByCategory}
+              onToggleRetailer={onToggleRetailer}
+              place={place}
               products={products}
               onProductsChange={setProducts}
               results={results}
