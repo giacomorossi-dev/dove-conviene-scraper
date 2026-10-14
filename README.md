@@ -14,7 +14,7 @@ liste e le ricerche in preset (salvati in `localStorage`).
 
 ## Requisiti
 
-- Node 24 (`nvm use`, legge `.nvmrc`; minimo 22.12)
+- Node 24 (`nvm use`, legge `.nvmrc`)
 - Bun 1.3
 
 ## Avvio
