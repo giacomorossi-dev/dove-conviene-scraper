@@ -334,8 +334,21 @@ const App = () => {
 
   return (
     <>
-      <Topbar view={view} onChangeView={setView} />
-      <main className="pt-20 pb-24">
+      <Topbar
+        view={view}
+        onChangeView={setView}
+        city={city}
+        onCitySelect={({ name, slug }) => {
+          setCity(name);
+          setCitySlug(slug);
+        }}
+        onCityChange={(raw) => {
+          setCity(raw);
+          setCitySlug("");
+        }}
+      />
+      {/* The topbar wraps the location onto a second row below `sm`. */}
+      <main className="pt-32 pb-24 sm:pt-20">
         <div className="container">
           {view === "lists" ? (
             <ListsView
@@ -352,16 +365,6 @@ const App = () => {
             />
           ) : (
             <Wizard
-              city={city}
-              citySlug={citySlug}
-              onCitySelect={({ name, slug }) => {
-                setCity(name);
-                setCitySlug(slug);
-              }}
-              onCityChange={(raw) => {
-                setCity(raw);
-                setCitySlug("");
-              }}
               flyers={flyers}
               onToggleFlyer={onToggleFlyer}
               retailersByCategory={retailersByCategory}

@@ -15,6 +15,8 @@ interface Props {
   onChange?: (raw: string) => void;
   placeholder?: string;
   className?: string;
+  inputClassName?: string;
+  "aria-label"?: string;
 }
 
 const normalize = (s: string): string =>
@@ -30,6 +32,8 @@ const CityAutocomplete = ({
   onChange,
   placeholder,
   className,
+  inputClassName,
+  "aria-label": ariaLabel,
 }: Props) => {
   const [cities, setCities] = useState<City[]>(citiesCache ?? []);
   const [query, setQuery] = useState(value);
@@ -114,10 +118,12 @@ const CityAutocomplete = ({
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        aria-label={ariaLabel}
+        className={inputClassName}
         autoComplete="off"
       />
       {open && filtered.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+        <div className="absolute right-0 z-50 mt-1 max-h-72 w-full min-w-72 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
           {filtered.map((c, i) => (
             <button
               key={`${c.slug}-${i}`}

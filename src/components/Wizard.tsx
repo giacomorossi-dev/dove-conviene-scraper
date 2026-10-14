@@ -12,15 +12,10 @@ import { CATEGORIES } from "@shared/categories";
 import type { Flyer as FlyerI, ProductQuery } from "@shared/types";
 import Flyer from "./Flyer";
 import ProductsChipsInput from "./ProductsChipsInput";
-import CityAutocomplete from "./CityAutocomplete";
 import ResultsTable from "./ResultsTable";
 import type { List, RowData } from "@/lib/lists";
 
 interface Props {
-  city: string;
-  citySlug: string;
-  onCitySelect: (city: { name: string; slug: string }) => void;
-  onCityChange: (raw: string) => void;
   flyers: FlyerI[];
   onToggleFlyer: (flyer: FlyerI) => void;
   retailersByCategory: Record<string, FlyerI[]>;
@@ -34,9 +29,6 @@ interface Props {
 }
 
 const Wizard = ({
-  city,
-  onCitySelect,
-  onCityChange,
   flyers,
   onToggleFlyer,
   retailersByCategory,
@@ -71,22 +63,7 @@ const Wizard = ({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>1 - Seleziona una località</CardTitle>
-        </CardHeader>
-        <CardContent className="gap-2">
-          <Label>Località</Label>
-          <CityAutocomplete
-            value={city}
-            onSelect={onCitySelect}
-            onChange={onCityChange}
-            placeholder="Inizia a digitare una città..."
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>2 - Seleziona i volantini</CardTitle>
+          <CardTitle>1 - Seleziona i volantini</CardTitle>
         </CardHeader>
         <CardContent>
           <Accordion
@@ -143,7 +120,7 @@ const Wizard = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>3 - Inserisci i prodotti</CardTitle>
+          <CardTitle>2 - Inserisci i prodotti</CardTitle>
         </CardHeader>
         <CardContent className="gap-2">
           <Label>Prodotti</Label>
@@ -153,7 +130,7 @@ const Wizard = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>4 - Risultati</CardTitle>
+          <CardTitle>3 - Risultati</CardTitle>
         </CardHeader>
         <CardContent>
           <ResultsTable
