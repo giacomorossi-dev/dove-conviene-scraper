@@ -1,7 +1,8 @@
 // A dc browsing session positioned at a place, as if a visitor had picked it
-// in dc's location panel: dc stores the position server side (keyed by the
-// session cookie) and then serves "nelle vicinanze" pages for it, e.g.
-// /iper-e-super with the flyers of the stores closest to that point.
+// in dc's location panel: dc keeps the position in its encrypted `dc[User]`
+// cookie and then serves "nelle vicinanze" pages for it, e.g. /iper-e-super
+// with the flyers of the stores closest to that point. Only the coordinates
+// pick the flyers; name and zip are just the "Sei qui" label.
 import { BASE_URL } from "../shared/categories";
 import type { Place } from "../shared/types";
 import { BROWSER_HEADERS } from "./http";
