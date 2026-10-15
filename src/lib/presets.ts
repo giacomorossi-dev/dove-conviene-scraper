@@ -161,7 +161,10 @@ export function createPreset(draft: PresetDraft, now = Date.now()): Preset {
   };
 }
 
-/** The preset with the editor's changes; legacy names are gone after a save. */
+/**
+ * The preset with the editor's changes. Legacy names are gone after a save,
+ * unless the list is still empty: then they could not be matched yet.
+ */
 export function applyDraft(
   p: Preset,
   draft: PresetDraft,
@@ -173,6 +176,8 @@ export function applyDraft(
     name: draft.name.trim(),
     retailers: keepKnown(draft.retailers, known),
     products: draft.products,
+    ...(known.size === 0 &&
+      p.legacyRetailerNames && { legacyRetailerNames: p.legacyRetailerNames }),
     createdAt: p.createdAt,
     updatedAt: now,
   };

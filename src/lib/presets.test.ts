@@ -164,6 +164,23 @@ describe("createPreset / applyDraft", () => {
   });
 });
 
+describe("applyDraft while the list is still empty", () => {
+  test("names still waiting to be matched are kept, not lost", () => {
+    const p = preset({
+      retailers: ["conad-city"],
+      legacyRetailerNames: ["Coop"],
+    });
+    const next = applyDraft(
+      p,
+      { name: "Spesa", retailers: ["conad-city"], products: [] },
+      new Set(),
+      99
+    );
+    expect(next.retailers).toEqual(["conad-city"]);
+    expect(next.legacyRetailerNames).toEqual(["Coop"]);
+  });
+});
+
 describe("names", () => {
   const presets = [
     preset({ id: "a", name: "Spesa" }),
