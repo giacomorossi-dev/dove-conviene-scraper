@@ -165,8 +165,7 @@ const App = () => {
         onPlaceChange={setPlace}
         shoppingCount={shopping.toBuy}
       />
-      {/* The topbar wraps the location onto a second row below `sm`. */}
-      <main className="pt-32 pb-24 sm:pt-20">
+      <main className="pt-6 pb-24">
         <div className="container">
           {view === "shopping" ? (
             <ShoppingListView

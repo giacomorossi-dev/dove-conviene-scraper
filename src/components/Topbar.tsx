@@ -32,7 +32,9 @@ const Topbar = ({
 
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-50 bg-background border-b shadow-sm">
+      {/* Sticky, not fixed: it keeps its own height in the page, so content
+          starts below it however many rows it wraps onto. */}
+      <header className="sticky top-0 z-50 bg-background border-b shadow-sm">
         <div className="container flex flex-wrap items-center gap-x-6 gap-y-2 py-3">
           <Logo className="h-8 w-auto shrink-0" />
           <nav className="flex gap-1">
