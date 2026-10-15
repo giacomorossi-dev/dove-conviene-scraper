@@ -3,8 +3,8 @@
 Progetto personale che cerca le offerte nei volantini di
 [doveconviene.it](https://www.doveconviene.it): scegli località (città o CAP), insegne e prodotti
 (con prezzo massimo opzionale) e ottieni una tabella dei risultati, aggiornata
-in streaming mentre i volantini vengono letti. I prodotti si possono salvare in
-liste e le ricerche in preset (insegne + prodotti, gestiti nella pagina Preset e
+in streaming mentre i volantini vengono letti. I prodotti si possono mettere
+nella lista della spesa (carrello nei risultati) e le ricerche in preset (insegne + prodotti, gestiti nella pagina Preset e
 salvati in `localStorage`; la località resta nella barra in alto).
 
 ## Stack
@@ -80,7 +80,7 @@ server/            API Express (index.ts) e scraper
 scripts/           script di manutenzione (fixture, elenco insegne)
 src/               app React
   components/ui/   componenti shadcn (generati dalla CLI)
-  lib/             preset, liste e località (localStorage), filtri insegne
+  lib/             preset, lista della spesa e località (localStorage), filtri insegne
 ```
 
 ## Note
