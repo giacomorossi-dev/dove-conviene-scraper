@@ -26,8 +26,9 @@ bun install
 bun run dev
 ```
 
-Avvia il server API su `:3000` e Vite su `:5173` (o la prima porta libera);
-Vite inoltra `/api` al server.
+Avvia il server API su `:3000` e Vite su `:5180` (fissa, così non si scontra
+con altri progetti sulla 5173: se è occupata Vite si ferma invece di cambiarla);
+Vite inoltra `/api` al server. L'app è su http://localhost:5180.
 
 ### Dati locali e prima configurazione
 
