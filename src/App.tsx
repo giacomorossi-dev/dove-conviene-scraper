@@ -2,30 +2,19 @@ import { useEffect, useState } from "react";
 import type {
   Flyer as FlyerI,
   Place,
-  ProductQuery,
-  Retailer,
   ScrapeMessage,
   ScrapeRequest,
 } from "@shared/types";
-import Wizard from "./components/Wizard";
+import ResultsView from "./components/ResultsView";
 import ListsView from "./components/ListsView";
 import Topbar, { type View } from "./components/Topbar";
 import Bottombar from "./components/Bottombar";
 import Footer from "./components/Footer";
-import PresetNameDialog from "./components/PresetNameDialog";
-import PresetDeleteDialog from "./components/PresetDeleteDialog";
 import ListEditDialog from "./components/ListEditDialog";
 import ConfirmDialog from "./components/ConfirmDialog";
-import {
-  loadPresets,
-  savePresets,
-  loadActivePresetId,
-  saveActivePresetId,
-  createPreset,
-  isPresetDirty,
-  DEFAULT_PRESET_NAME,
-  type Preset,
-} from "./lib/presets";
+import { loadLegacyActivePlace } from "./lib/presets";
+import { usePresets } from "./lib/usePresets";
+import { useCatalog } from "./lib/useCatalog";
 import {
   loadLists,
   saveLists,
@@ -36,49 +25,20 @@ import {
   type List,
   type RowData,
 } from "./lib/lists";
-import { DEFAULT_PLACE, resolveCityName } from "./lib/places";
-import { isRetailer, toSelection } from "./lib/retailers";
-
-const storedPresets = loadPresets();
-// First run: seed the default preset up front instead of in a mount effect.
-const initialPresets =
-  storedPresets.length > 0
-    ? storedPresets
-    : [
-        createPreset({
-          name: DEFAULT_PRESET_NAME,
-          place: DEFAULT_PLACE,
-          flyers: [],
-          products: [],
-          default: true,
-        }),
-      ];
-const initialActiveId =
-  storedPresets.length > 0 ? loadActivePresetId() : initialPresets[0].id;
-const initialActive =
-  initialPresets.find((p) => p.id === initialActiveId) ?? null;
+import { DEFAULT_PLACE, loadPlace, savePlace } from "./lib/places";
+import { knownRetailers, toSelection } from "./lib/retailers";
 
 const App = () => {
-  const [place, setPlace] = useState<Place | null>(
-    initialActive ? initialActive.place : DEFAULT_PLACE
+  const catalog = useCatalog();
+  const { presets, active, activeId, setActiveId } = usePresets(
+    catalog.retailers
   );
-  const [flyers, setFlyers] = useState<FlyerI[]>(initialActive?.flyers ?? []);
-  const [products, setProducts] = useState<ProductQuery[]>(
-    initialActive?.products ?? []
+  const [place, setPlace] = useState<Place>(
+    () => loadPlace() ?? loadLegacyActivePlace() ?? DEFAULT_PLACE
   );
   const [results, setResults] = useState<FlyerI[]>([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<View>("main");
-
-  const [presets, setPresets] = useState<Preset[]>(initialPresets);
-  const [activeId, setActiveId] = useState<string | null>(initialActiveId);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createInitialName, setCreateInitialName] = useState("");
-  const [createInitialSource, setCreateInitialSource] = useState<string | null>(
-    null
-  );
-  const [renameTarget, setRenameTarget] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const [lists, setLists] = useState<List[]>(() => loadLists());
   const [pendingItem, setPendingItem] = useState<RowData | null>(null);
@@ -90,57 +50,32 @@ const App = () => {
     list: List;
   } | null>(null);
 
-  const active = presets.find((p) => p.id === activeId) ?? null;
-  const renameTargetPreset = presets.find((p) => p.id === renameTarget) ?? null;
-  const deleteTargetPreset = presets.find((p) => p.id === deleteTarget) ?? null;
   const editListTarget = lists.find((l) => l.id === editListId) ?? null;
   const deleteListTarget = lists.find((l) => l.id === deleteListId) ?? null;
-  const dirty = active
-    ? isPresetDirty(active, { place, flyers, products })
-    : false;
 
-  useEffect(() => {
-    savePresets(presets);
-  }, [presets]);
-  useEffect(() => {
-    saveActivePresetId(activeId);
-  }, [activeId]);
+  useEffect(() => savePlace(place), [place]);
   useEffect(() => {
     saveLists(lists);
   }, [lists]);
 
-  // Presets saved before places had coordinates only know a city name: look
-  // it up once and store the place.
-  useEffect(() => {
-    const legacy = initialPresets.filter((p) => !p.place && p.legacyCity);
-    if (legacy.length === 0) return;
-    Promise.all(
-      legacy.map(
-        async (p) => [p.id, await resolveCityName(p.legacyCity!)] as const
-      )
-    ).then((entries) => {
-      const resolved = new Map(
-        entries.filter((e): e is [string, Place] => e[1] !== null)
-      );
-      setPresets((prev) =>
-        prev.map((p) => {
-          const found = resolved.get(p.id);
-          return found ? { ...p, place: found, legacyCity: undefined } : p;
-        })
-      );
-      const activePlace = initialActiveId && resolved.get(initialActiveId);
-      if (activePlace) setPlace((cur) => cur ?? activePlace);
-    });
-  }, []);
+  // ---- search ----
 
-  // ---- main wizard handlers ----
+  const searchRetailers = active
+    ? knownRetailers(active.retailers, catalog.bySlug)
+    : [];
+  const canSearch =
+    !!active && searchRetailers.length > 0 && active.products.length > 0;
 
-  const onRun = async () => {
-    if (!place) return;
+  const onSearch = async () => {
+    if (!active || !canSearch) return;
     setLoading(true);
     setResults([]);
     try {
-      const request: ScrapeRequest = { place, flyers, products };
+      const request: ScrapeRequest = {
+        place,
+        flyers: searchRetailers.map(toSelection),
+        products: active.products,
+      };
       const res = await fetch("/api/scraper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -175,89 +110,11 @@ const App = () => {
     }
   };
 
-  const onToggleRetailer = (retailer: Retailer) => {
-    setFlyers((prev) =>
-      prev.some((f) => isRetailer(f, retailer))
-        ? prev.filter((f) => !isRetailer(f, retailer))
-        : prev.concat(toSelection(retailer))
-    );
-  };
-
   // ---- preset handlers ----
 
-  const applyPreset = (preset: Preset) => {
-    setPlace(preset.place);
-    setFlyers(preset.flyers);
-    setProducts(preset.products);
-    setActiveId(preset.id);
-  };
-
   const onSelectPreset = (id: string) => {
-    const p = presets.find((p) => p.id === id);
-    if (p) applyPreset(p);
-  };
-
-  const onCreatePreset = (name: string, sourceId?: string | null) => {
-    const source = sourceId ? presets.find((p) => p.id === sourceId) : null;
-    const data = source
-      ? {
-          place: source.place,
-          flyers: source.flyers,
-          products: source.products,
-        }
-      : { place, flyers, products };
-    const next = createPreset({ name, ...data });
-    setPresets([...presets, next]);
-    applyPreset(next);
-  };
-
-  const onRequestCreate = () => {
-    setCreateInitialName("");
-    setCreateInitialSource(null);
-    setCreateOpen(true);
-  };
-
-  const onRequestDuplicate = (id: string) => {
-    const src = presets.find((p) => p.id === id);
-    if (!src) return;
-    setCreateInitialName(`Copia di ${src.name}`);
-    setCreateInitialSource(id);
-    setCreateOpen(true);
-  };
-
-  const onRenamePreset = (id: string, name: string) => {
-    setPresets(
-      presets.map((p) =>
-        p.id === id ? { ...p, name, updatedAt: Date.now() } : p
-      )
-    );
-  };
-
-  const onDeletePreset = (id: string) => {
-    const target = presets.find((p) => p.id === id);
-    if (target?.default) return;
-    const next = presets.filter((p) => p.id !== id);
-    setPresets(next);
-    if (activeId === id) {
-      const newActive = next.find((p) => p.default) ?? next[0] ?? null;
-      setActiveId(newActive?.id ?? null);
-      if (newActive) applyPreset(newActive);
-    }
-  };
-
-  const onUpdateActive = () => {
-    if (!active) return;
-    setPresets(
-      presets.map((p) =>
-        p.id === active.id
-          ? { ...p, place, flyers, products, updatedAt: Date.now() }
-          : p
-      )
-    );
-  };
-
-  const onResetToActive = () => {
-    if (active) applyPreset(active);
+    setActiveId(id);
+    setResults([]);
   };
 
   // ---- list handlers ----
@@ -361,12 +218,9 @@ const App = () => {
               onRemoveExpired={onRemoveExpired}
             />
           ) : (
-            <Wizard
-              flyers={flyers}
-              onToggleRetailer={onToggleRetailer}
-              place={place}
-              products={products}
-              onProductsChange={setProducts}
+            <ResultsView
+              preset={active}
+              bySlug={catalog.bySlug}
               results={results}
               lists={lists}
               onAddToList={onAddToList}
@@ -381,53 +235,17 @@ const App = () => {
 
       <Footer />
 
-      <Bottombar
-        view={view}
-        presets={presets}
-        activeId={activeId}
-        onSelectPreset={onSelectPreset}
-        onRequestRename={(id) => setRenameTarget(id)}
-        onRequestDuplicate={onRequestDuplicate}
-        onRequestDelete={(id) => setDeleteTarget(id)}
-        onRequestCreate={onRequestCreate}
-        loading={loading}
-        onRun={onRun}
-        dirty={!!active && dirty}
-        onUpdatePreset={onUpdateActive}
-        onResetPreset={onResetToActive}
-      />
-
-      <PresetNameDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        title="Nuovo preset"
-        description="Scegli un nome e da quale configurazione partire."
-        submitLabel="Crea"
-        initialName={createInitialName}
-        initialSourceId={createInitialSource}
-        sources={presets}
-        onSubmit={onCreatePreset}
-      />
-
-      <PresetNameDialog
-        open={renameTarget !== null}
-        onOpenChange={(o) => !o && setRenameTarget(null)}
-        title="Rinomina preset"
-        initialName={renameTargetPreset?.name ?? ""}
-        submitLabel="Salva"
-        onSubmit={(name) => {
-          if (renameTarget) onRenamePreset(renameTarget, name);
-        }}
-      />
-
-      <PresetDeleteDialog
-        open={deleteTarget !== null}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-        presetName={deleteTargetPreset?.name ?? ""}
-        onConfirm={() => {
-          if (deleteTarget) onDeletePreset(deleteTarget);
-        }}
-      />
+      {view === "main" && (
+        <Bottombar
+          presets={presets}
+          activeId={activeId}
+          bySlug={catalog.bySlug}
+          onSelectPreset={onSelectPreset}
+          loading={loading}
+          canSearch={canSearch}
+          onSearch={onSearch}
+        />
+      )}
 
       <ListEditDialog
         open={newListOpen}

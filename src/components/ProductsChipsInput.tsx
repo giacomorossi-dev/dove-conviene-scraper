@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ProductQuery } from "@shared/types";
 
@@ -10,9 +11,6 @@ interface Props {
   placeholder?: string;
   className?: string;
 }
-
-const formatPrice = (n: number): string =>
-  `€ ${n.toFixed(2).replace(".", ",")}`;
 
 const parseChip = (raw: string): ProductQuery | null => {
   const trimmed = raw.trim();

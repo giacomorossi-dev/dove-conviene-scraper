@@ -1,43 +1,40 @@
+// The results page: the active preset, then what the search found.
 import { useMemo } from "react";
-import { Label } from "@/components/ui/label";
+import { ListChecks } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type {
-  Flyer as FlyerI,
-  Place,
-  ProductQuery,
-  Retailer,
-} from "@shared/types";
-import ProductsChipsInput from "./ProductsChipsInput";
-import RetailerPicker from "./RetailerPicker";
-import ResultsTable from "./ResultsTable";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import type { List, RowData } from "@/lib/lists";
+import type { Preset } from "@/lib/presets";
+import type { Flyer, Retailer } from "@shared/types";
+import PresetSummary from "./PresetSummary";
+import ResultsTable from "./ResultsTable";
 
 interface Props {
-  flyers: FlyerI[];
-  onToggleRetailer: (retailer: Retailer) => void;
-  place: Place | null;
-  products: ProductQuery[];
-  onProductsChange: (next: ProductQuery[]) => void;
-  results: FlyerI[];
+  preset: Preset | null;
+  bySlug: ReadonlyMap<string, Retailer>;
+  results: Flyer[];
   lists: List[];
   onAddToList: (listId: string, row: RowData) => void;
   onRequestNewList: (row: RowData) => void;
   onRequestRemoveItem: (row: RowData, list: List) => void;
 }
 
-const Wizard = ({
-  flyers,
-  onToggleRetailer,
-  place,
-  products,
-  onProductsChange,
+const ResultsView = ({
+  preset,
+  bySlug,
   results,
   lists,
   onAddToList,
   onRequestNewList,
   onRequestRemoveItem,
 }: Props) => {
-  const resultRows = useMemo<RowData[]>(
+  const rows = useMemo<RowData[]>(
     () =>
       results.flatMap((flyer) =>
         (flyer.products ?? []).map((p) => ({
@@ -52,31 +49,31 @@ const Wizard = ({
     [results]
   );
 
+  if (!preset)
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ListChecks />
+          </EmptyMedia>
+          <EmptyTitle>Nessun preset</EmptyTitle>
+          <EmptyDescription>
+            Crea un preset con le insegne e i prodotti da cercare.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+
   return (
     <div className="space-y-4">
-      <RetailerPicker
-        place={place}
-        flyers={flyers}
-        onToggleRetailer={onToggleRetailer}
-      />
-
+      <PresetSummary preset={preset} bySlug={bySlug} />
       <Card>
         <CardHeader>
-          <CardTitle>2 - Inserisci i prodotti</CardTitle>
-        </CardHeader>
-        <CardContent className="gap-2">
-          <Label>Prodotti</Label>
-          <ProductsChipsInput value={products} onChange={onProductsChange} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>3 - Risultati</CardTitle>
+          <CardTitle>Risultati</CardTitle>
         </CardHeader>
         <CardContent>
           <ResultsTable
-            rows={resultRows}
+            rows={rows}
             lists={lists}
             onAddToList={onAddToList}
             onRequestNewList={onRequestNewList}
@@ -88,4 +85,4 @@ const Wizard = ({
   );
 };
 
-export default Wizard;
+export default ResultsView;

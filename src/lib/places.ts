@@ -1,4 +1,4 @@
-import type { Place, PlaceSuggestion } from "@shared/types";
+import type { Place } from "@shared/types";
 
 export const DEFAULT_PLACE: Place = {
   name: "Rimini",
@@ -11,23 +11,20 @@ export const DEFAULT_PLACE: Place = {
 export const placeLabel = (place: Place): string =>
   place.zip ? `${place.name} - ${place.zip}` : place.name;
 
-export const samePlace = (a: Place | null, b: Place | null): boolean =>
-  a === b ||
-  (!!a &&
-    !!b &&
-    a.name === b.name &&
-    a.zip === b.zip &&
-    a.lat === b.lat &&
-    a.lng === b.lng);
+const PLACE_KEY = "dove-conviene:place";
 
-/** Finds the town for a city name saved before places had coordinates. */
-export async function resolveCityName(name: string): Promise<Place | null> {
-  const res = await fetch(`/api/places?q=${encodeURIComponent(name)}`);
-  if (!res.ok) return null;
-  const towns = ((await res.json()) as PlaceSuggestion[]).filter((s) => !s.zip);
-  const match =
-    towns.find((s) => s.name.toLowerCase() === name.toLowerCase()) ?? towns[0];
-  return match
-    ? { name: match.name, zip: null, lat: match.lat, lng: match.lng }
-    : null;
+/** The place chosen in the topbar, saved on its own since presets lost it. */
+export function loadPlace(): Place | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PLACE_KEY);
+    return raw ? (JSON.parse(raw) as Place) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePlace(place: Place): void {
+  if (typeof localStorage !== "undefined")
+    localStorage.setItem(PLACE_KEY, JSON.stringify(place));
 }
