@@ -1,7 +1,10 @@
 // The active preset on the results page, read-only.
+import { Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -16,9 +19,10 @@ import RetailerLogos from "./RetailerLogos";
 interface Props {
   preset: Preset;
   bySlug: ReadonlyMap<string, Retailer>;
+  onEdit: () => void;
 }
 
-const PresetSummary = ({ preset, bySlug }: Props) => {
+const PresetSummary = ({ preset, bySlug, onEdit }: Props) => {
   const retailers = knownRetailers(preset.retailers, bySlug);
   return (
     <Card>
@@ -27,6 +31,11 @@ const PresetSummary = ({ preset, bySlug }: Props) => {
         <CardDescription>
           {countsLabel(retailers.length, preset.products.length)}
         </CardDescription>
+        <CardAction>
+          <Button variant="ghost" size="sm" onClick={onEdit}>
+            <Pencil /> Modifica
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="grid gap-3">
         {retailers.length > 0 ? (

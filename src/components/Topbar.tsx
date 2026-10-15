@@ -4,7 +4,13 @@ import LocationPicker from "./LocationPicker";
 import { cn } from "@/lib/utils";
 import type { Place } from "@shared/types";
 
-export type View = "main" | "lists";
+export type View = "main" | "presets" | "lists";
+
+const TABS: { view: View; label: string }[] = [
+  { view: "main", label: "Risultati" },
+  { view: "presets", label: "Preset" },
+  { view: "lists", label: "Le mie liste" },
+];
 
 interface Props {
   view: View;
@@ -22,30 +28,22 @@ const Topbar = ({ view, onChangeView, place, onPlaceChange }: Props) => {
         <div className="container flex flex-wrap items-center gap-x-6 gap-y-2 py-3">
           <Logo className="h-8 w-auto shrink-0" />
           <nav className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => onChangeView("main")}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-sm transition-colors",
-                view === "main"
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              )}
-            >
-              Risultati
-            </button>
-            <button
-              type="button"
-              onClick={() => onChangeView("lists")}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-sm transition-colors",
-                view === "lists"
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-              )}
-            >
-              Le mie liste
-            </button>
+            {TABS.map((t) => (
+              <button
+                key={t.view}
+                type="button"
+                onClick={() => onChangeView(t.view)}
+                aria-current={view === t.view ? "page" : undefined}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm transition-colors",
+                  view === t.view
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
           </nav>
           {/* Own row on mobile, top right from `sm` up. Not `relative`: the
               location panel is positioned against the header. */}

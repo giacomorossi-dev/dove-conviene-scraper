@@ -6,13 +6,22 @@ import type {
   ScrapeRequest,
 } from "@shared/types";
 import ResultsView from "./components/ResultsView";
+import PresetsView from "./components/PresetsView";
+import PresetEditorDialog, {
+  type EditorMode,
+} from "./components/PresetEditorDialog";
 import ListsView from "./components/ListsView";
 import Topbar, { type View } from "./components/Topbar";
 import Bottombar from "./components/Bottombar";
 import Footer from "./components/Footer";
 import ListEditDialog from "./components/ListEditDialog";
 import ConfirmDialog from "./components/ConfirmDialog";
-import { loadLegacyActivePlace } from "./lib/presets";
+import {
+  copyName,
+  EMPTY_DRAFT,
+  loadLegacyActivePlace,
+  type PresetDraft,
+} from "./lib/presets";
 import { usePresets } from "./lib/usePresets";
 import { useCatalog } from "./lib/useCatalog";
 import {
@@ -30,15 +39,24 @@ import { knownRetailers, toSelection } from "./lib/retailers";
 
 const App = () => {
   const catalog = useCatalog();
-  const { presets, active, activeId, setActiveId } = usePresets(
-    catalog.retailers
-  );
+  const { presets, active, activeId, setActiveId, create, update, remove } =
+    usePresets(catalog.retailers);
   const [place, setPlace] = useState<Place>(
     () => loadPlace() ?? loadLegacyActivePlace() ?? DEFAULT_PLACE
   );
   const [results, setResults] = useState<FlyerI[]>([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<View>("main");
+
+  // The editor keeps its last content while it closes (no title flicker).
+  const [editor, setEditor] = useState<{
+    mode: EditorMode;
+    editingId?: string;
+    initial: PresetDraft;
+  }>({ mode: "create", initial: EMPTY_DRAFT });
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [deletePresetId, setDeletePresetId] = useState<string | null>(null);
+  const deletePreset = presets.find((p) => p.id === deletePresetId) ?? null;
 
   const [lists, setLists] = useState<List[]>(() => loadLists());
   const [pendingItem, setPendingItem] = useState<RowData | null>(null);
@@ -115,6 +133,52 @@ const App = () => {
   const onSelectPreset = (id: string) => {
     setActiveId(id);
     setResults([]);
+  };
+
+  const draftOf = (id: string): PresetDraft | null => {
+    const p = presets.find((x) => x.id === id);
+    return p
+      ? { name: p.name, retailers: p.retailers, products: p.products }
+      : null;
+  };
+
+  const openCreate = () => {
+    setView("presets");
+    setEditor({ mode: "create", initial: EMPTY_DRAFT });
+    setEditorOpen(true);
+  };
+
+  const openEdit = (id: string) => {
+    const initial = draftOf(id);
+    if (!initial) return;
+    setEditor({ mode: "edit", editingId: id, initial });
+    setEditorOpen(true);
+  };
+
+  const openDuplicate = (id: string) => {
+    const source = draftOf(id);
+    if (!source) return;
+    setEditor({
+      mode: "duplicate",
+      initial: { ...source, name: copyName(presets, source.name) },
+    });
+    setEditorOpen(true);
+  };
+
+  const onSaveEditor = (draft: PresetDraft) => {
+    if (editor.mode === "edit" && editor.editingId)
+      update(editor.editingId, draft);
+    else {
+      create(draft);
+      setResults([]);
+    }
+  };
+
+  const onConfirmDeletePreset = () => {
+    if (!deletePresetId) return;
+    if (deletePresetId === activeId) setResults([]);
+    remove(deletePresetId);
+    setDeletePresetId(null);
   };
 
   // ---- list handlers ----
@@ -217,6 +281,15 @@ const App = () => {
               onRequestDelete={(id) => setDeleteListId(id)}
               onRemoveExpired={onRemoveExpired}
             />
+          ) : view === "presets" ? (
+            <PresetsView
+              presets={presets}
+              bySlug={catalog.bySlug}
+              onRequestCreate={openCreate}
+              onRequestEdit={openEdit}
+              onRequestDuplicate={openDuplicate}
+              onRequestDelete={setDeletePresetId}
+            />
           ) : (
             <ResultsView
               preset={active}
@@ -228,6 +301,8 @@ const App = () => {
               onRequestRemoveItem={(row, list) =>
                 setRemoveItemTarget({ row, list })
               }
+              onRequestCreate={openCreate}
+              onRequestEdit={() => active && openEdit(active.id)}
             />
           )}
         </div>
@@ -246,6 +321,27 @@ const App = () => {
           onSearch={onSearch}
         />
       )}
+
+      <PresetEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        mode={editor.mode}
+        editingId={editor.editingId}
+        initial={editor.initial}
+        presets={presets}
+        catalog={catalog}
+        onSave={onSaveEditor}
+      />
+
+      <ConfirmDialog
+        open={deletePresetId !== null}
+        onOpenChange={(o) => !o && setDeletePresetId(null)}
+        title={`Eliminare il preset «${deletePreset?.name ?? ""}»?`}
+        description="L'azione non può essere annullata."
+        confirmLabel="Elimina"
+        destructive
+        onConfirm={onConfirmDeletePreset}
+      />
 
       <ListEditDialog
         open={newListOpen}

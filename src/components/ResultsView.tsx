@@ -1,9 +1,11 @@
 // The results page: the active preset, then what the search found.
 import { useMemo } from "react";
-import { ListChecks } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -23,6 +25,8 @@ interface Props {
   onAddToList: (listId: string, row: RowData) => void;
   onRequestNewList: (row: RowData) => void;
   onRequestRemoveItem: (row: RowData, list: List) => void;
+  onRequestCreate: () => void;
+  onRequestEdit: () => void;
 }
 
 const ResultsView = ({
@@ -33,6 +37,8 @@ const ResultsView = ({
   onAddToList,
   onRequestNewList,
   onRequestRemoveItem,
+  onRequestCreate,
+  onRequestEdit,
 }: Props) => {
   const rows = useMemo<RowData[]>(
     () =>
@@ -61,12 +67,17 @@ const ResultsView = ({
             Crea un preset con le insegne e i prodotti da cercare.
           </EmptyDescription>
         </EmptyHeader>
+        <EmptyContent>
+          <Button onClick={onRequestCreate}>
+            <Plus /> Crea preset
+          </Button>
+        </EmptyContent>
       </Empty>
     );
 
   return (
     <div className="space-y-4">
-      <PresetSummary preset={preset} bySlug={bySlug} />
+      <PresetSummary preset={preset} bySlug={bySlug} onEdit={onRequestEdit} />
       <Card>
         <CardHeader>
           <CardTitle>Risultati</CardTitle>
