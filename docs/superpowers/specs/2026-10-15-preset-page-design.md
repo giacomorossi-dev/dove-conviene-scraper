@@ -65,6 +65,17 @@ interface Preset {
 - I preset restano nel `localStorage` del browser, con la stessa chiave di oggi.
 - Si continua a salvare l'id del preset attivo.
 
+### Località
+
+Oggi la località scelta si salva dentro il preset attivo. Uscendo dal preset
+va salvata per conto suo:
+
+- si salva nel `localStorage` con la chiave `dove-conviene:place` ogni volta
+  che cambia;
+- all'avvio si usa quella salvata;
+- se manca, si usa la località che aveva il preset attivo nel vecchio formato;
+- se manca anche quella, si usa Rimini.
+
 ### Migrazione dei preset salvati
 
 La conversione avviene al caricamento:
@@ -73,9 +84,12 @@ La conversione avviene al caricamento:
 - **Voci senza slug** (preset molto vecchi, salvate per nome):
   - l'elenco arriva dopo il caricamento dei preset, quindi la migrazione mette
     i loro nomi in un campo temporaneo `legacyRetailerNames?: string[]`;
-  - appena l'elenco è disponibile, `usePresets` li abbina per nome esatto, li
-    aggiunge a `retailers` e toglie il campo;
-  - i nomi senza corrispondenza si scartano.
+  - appena l'elenco è disponibile, `usePresets` li abbina per nome esatto e li
+    aggiunge a `retailers` nei preset che restituisce (lettura, riepilogo,
+    ricerca, modifica);
+  - i nomi senza corrispondenza si scartano;
+  - nel `localStorage` il campo resta fino al primo salvataggio del preset, che
+    scrive gli slug e lo toglie.
 - **Campi rimossi:** `place`, `city`, `citySlug`, `legacyCity` e `default` si
   ignorano.
 
@@ -194,8 +208,11 @@ Props:
   - selezione del preset, solo la scelta, in ordine alfabetico (si tolgono
     rinomina, duplica ed elimina dal menu);
   - pulsante **Cerca**, l'attuale "Run".
-- **Cerca è disattivato** senza preset attivo, senza località, oppure con un
-  preset senza insegne o senza prodotti.
+- **Cerca è disattivato** senza preset attivo, oppure con un preset senza
+  insegne (tra quelle nell'elenco) o senza prodotti. Una località c'è sempre.
+- **Cambio di preset:** cambiando il preset attivo, i risultati della ricerca
+  precedente si svuotano.
+- **La barra in basso** compare solo nella pagina Risultati.
 - **Senza preset:** stato `Empty` con "Crea preset", che passa alla pagina
   Preset e apre la finestra in modalità *crea*.
 - **La ricerca invariata lato server:**
