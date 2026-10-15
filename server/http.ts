@@ -43,8 +43,15 @@ async function politely<T>(url: string, send: () => Promise<T>): Promise<T> {
 }
 
 /**
+ * Without a timeout a request can hang forever (e.g. across a system
+ * suspend), and a hung dc request would stall the whole dc queue.
+ */
+const TIMEOUT = 30_000;
+
+/**
  * fetch() that queues dc requests (see politely) and retries, backing off,
- * when dc refuses connections or is overloaded: network errors, 429 and 5xx.
+ * when dc refuses connections, is overloaded or doesn't answer: network
+ * errors and timeouts, 429 and 5xx.
  */
 export async function fetchWithRetry(
   url: string,
@@ -52,7 +59,11 @@ export async function fetchWithRetry(
 ): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     try {
-      const res = await politely(url, () => fetch(url, init));
+      const timeout = AbortSignal.timeout(TIMEOUT);
+      const signal = init?.signal
+        ? AbortSignal.any([init.signal, timeout])
+        : timeout;
+      const res = await politely(url, () => fetch(url, { ...init, signal }));
       const retryable = res.status === 429 || res.status >= 500;
       if (!retryable || attempt >= RETRY_DELAYS.length) return res;
     } catch (err) {
