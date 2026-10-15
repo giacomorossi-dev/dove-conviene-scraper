@@ -1,6 +1,6 @@
 // Multi-select of retailers from the local national list, filterable by
 // name and category. Reusable: it only knows the selected slugs.
-import { useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,12 @@ const CATEGORY_ITEMS = [
   { label: "Tutte le categorie", value: null },
   ...CATEGORIES.map((c) => ({ label: c.name, value: categorySlug(c) })),
 ];
+
+/**
+ * Rows drawn at a time: all 937 at once froze phone-class CPUs and
+ * requested every logo. More are drawn as the list scrolls.
+ */
+const PAGE = 50;
 
 const PHASES: Record<BuildProgress["phase"], string> = {
   sitemaps: "Elenco insegne",
@@ -101,6 +107,9 @@ const RetailerSelect = ({ value, onChange, catalog }: Props) => {
   const [category, setCategory] = useState<string | null>(null);
   const [onlySelected, setOnlySelected] = useState(false);
 
+  // Typing stays responsive: the list follows a moment later.
+  const deferredQuery = useDeferredValue(query);
+
   const selected = useMemo(() => new Set(value), [value]);
   // Slugs no longer in the list stay in `value` but are not counted or shown.
   const selectedCount = value.filter((s) => bySlug.has(s)).length;
@@ -109,11 +118,36 @@ const RetailerSelect = ({ value, onChange, catalog }: Props) => {
     () =>
       filterRetailers(
         retailers,
-        { query, category, onlySelected: showOnlySelected },
+        { query: deferredQuery, category, onlySelected: showOnlySelected },
         selected
       ),
-    [retailers, query, category, showOnlySelected, selected]
+    [retailers, deferredQuery, category, showOnlySelected, selected]
   );
+
+  // Back to the first rows whenever the filters change.
+  const [limit, setLimit] = useState(PAGE);
+  const filterKey = `${deferredQuery}|${category}|${showOnlySelected}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setLimit(PAGE);
+  }
+  const shown = visible.slice(0, limit);
+  const hasMore = shown.length < visible.length;
+
+  // Draw more rows when the end of the list scrolls into view.
+  const listRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const end = endRef.current;
+    if (!hasMore || !end) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => entry.isIntersecting && setLimit((l) => l + PAGE),
+      { root: listRef.current, rootMargin: "200px" }
+    );
+    observer.observe(end);
+    return () => observer.disconnect();
+  }, [hasMore, limit]);
 
   const toggle = (slug: string, checked: boolean) =>
     onChange(checked ? [...value, slug] : value.filter((s) => s !== slug));
@@ -189,13 +223,16 @@ const RetailerSelect = ({ value, onChange, catalog }: Props) => {
         </Button>
       </div>
 
-      <ItemGroup className="max-h-96 overflow-y-auto rounded-lg border">
+      <ItemGroup
+        ref={listRef}
+        className="max-h-96 overflow-y-auto rounded-lg border"
+      >
         {visible.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             Nessuna insegna trovata.
           </p>
         ) : (
-          visible.map((r) => (
+          shown.map((r) => (
             <Item
               key={r.slug}
               size="sm"
@@ -221,6 +258,7 @@ const RetailerSelect = ({ value, onChange, catalog }: Props) => {
             </Item>
           ))
         )}
+        {hasMore && <div ref={endRef} aria-hidden className="h-px shrink-0" />}
       </ItemGroup>
 
       <CatalogInfo status={status} onUpdate={update} />
