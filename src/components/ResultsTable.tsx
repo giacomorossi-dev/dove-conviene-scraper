@@ -14,23 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import SaveToListMenu from "./SaveToListMenu";
-import {
-  findItemList,
-  isExpired,
-  itemKey,
-  type List,
-  type RowData,
-} from "@/lib/lists";
+import CartButton from "./CartButton";
+import { isExpired, type RowData } from "@/lib/shopping";
 import { cn } from "@/lib/utils";
 
 interface Props {
   rows: RowData[];
-  lists: List[];
-  onAddToList: (listId: string, row: RowData) => void;
-  onRequestNewList: (row: RowData) => void;
-  onRequestRemove: (row: RowData, list: List) => void;
-  emptyMessage?: string;
+  isInCart: (row: RowData) => boolean;
+  onToggleCart: (row: RowData) => void;
 }
 
 type SortKey = "productName" | "flyerName" | "validUntil" | "price";
@@ -92,14 +83,7 @@ const SortHeader = ({
   </button>
 );
 
-const ResultsTable = ({
-  rows,
-  lists,
-  onAddToList,
-  onRequestNewList,
-  onRequestRemove,
-  emptyMessage = "Nessun prodotto da visualizzare",
-}: Props) => {
+const ResultsTable = ({ rows, isInCart, onToggleCart }: Props) => {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
     key: "validUntil",
     dir: "asc",
@@ -176,7 +160,7 @@ const ResultsTable = ({
   if (rows.length === 0) {
     return (
       <div className="py-10 text-center text-sm text-muted-foreground">
-        {emptyMessage}
+        Nessun prodotto da visualizzare
       </div>
     );
   }
@@ -226,13 +210,14 @@ const ResultsTable = ({
                   className="ml-auto"
                 />
               </TableHead>
-              <TableHead className="w-48">Lista</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Lista della spesa</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.map((r, i) => {
               const expired = isExpired(r.validUntil);
-              const currentList = findItemList(lists, itemKey(r));
               return (
                 <TableRow key={i} className={cn(expired && "opacity-50")}>
                   <TableCell>
@@ -270,13 +255,9 @@ const ResultsTable = ({
                     {formatPrice(r.price)}
                   </TableCell>
                   <TableCell>
-                    <SaveToListMenu
-                      row={r}
-                      currentList={currentList}
-                      lists={lists}
-                      onAddToList={onAddToList}
-                      onRequestNewList={onRequestNewList}
-                      onRequestRemove={onRequestRemove}
+                    <CartButton
+                      inList={isInCart(r)}
+                      onToggle={() => onToggleCart(r)}
                     />
                   </TableCell>
                 </TableRow>

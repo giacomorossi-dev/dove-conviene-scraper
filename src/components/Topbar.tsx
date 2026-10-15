@@ -1,15 +1,16 @@
 import { useState } from "react";
 import Logo from "./Logo";
 import LocationPicker from "./LocationPicker";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Place } from "@shared/types";
 
-export type View = "main" | "presets" | "lists";
+export type View = "main" | "presets" | "shopping";
 
 const TABS: { view: View; label: string }[] = [
   { view: "main", label: "Risultati" },
   { view: "presets", label: "Preset" },
-  { view: "lists", label: "Le mie liste" },
+  { view: "shopping", label: "Lista della spesa" },
 ];
 
 interface Props {
@@ -17,9 +18,16 @@ interface Props {
   onChangeView: (v: View) => void;
   place: Place | null;
   onPlaceChange: (place: Place) => void;
+  shoppingCount: number;
 }
 
-const Topbar = ({ view, onChangeView, place, onPlaceChange }: Props) => {
+const Topbar = ({
+  view,
+  onChangeView,
+  place,
+  onPlaceChange,
+  shoppingCount,
+}: Props) => {
   const [locationOpen, setLocationOpen] = useState(false);
 
   return (
@@ -42,6 +50,11 @@ const Topbar = ({ view, onChangeView, place, onPlaceChange }: Props) => {
                 )}
               >
                 {t.label}
+                {t.view === "shopping" && shoppingCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5">
+                    {shoppingCount}
+                  </Badge>
+                )}
               </button>
             ))}
           </nav>

@@ -11,7 +11,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { List, RowData } from "@/lib/lists";
+import type { RowData } from "@/lib/shopping";
 import type { Preset } from "@/lib/presets";
 import type { Flyer, Retailer } from "@shared/types";
 import PresetSummary from "./PresetSummary";
@@ -21,10 +21,8 @@ interface Props {
   preset: Preset | null;
   bySlug: ReadonlyMap<string, Retailer>;
   results: Flyer[];
-  lists: List[];
-  onAddToList: (listId: string, row: RowData) => void;
-  onRequestNewList: (row: RowData) => void;
-  onRequestRemoveItem: (row: RowData, list: List) => void;
+  isInCart: (row: RowData) => boolean;
+  onToggleCart: (row: RowData) => void;
   onRequestCreate: () => void;
   onRequestEdit: () => void;
 }
@@ -33,10 +31,8 @@ const ResultsView = ({
   preset,
   bySlug,
   results,
-  lists,
-  onAddToList,
-  onRequestNewList,
-  onRequestRemoveItem,
+  isInCart,
+  onToggleCart,
   onRequestCreate,
   onRequestEdit,
 }: Props) => {
@@ -50,6 +46,7 @@ const ResultsView = ({
           flyerName: flyer.name,
           flyerUrl: flyer.url ?? "",
           validUntil: flyer.validUntil ?? null,
+          ...(flyer.slug && { retailerSlug: flyer.slug }),
         }))
       ),
     [results]
@@ -85,10 +82,8 @@ const ResultsView = ({
         <CardContent>
           <ResultsTable
             rows={rows}
-            lists={lists}
-            onAddToList={onAddToList}
-            onRequestNewList={onRequestNewList}
-            onRequestRemove={onRequestRemoveItem}
+            isInCart={isInCart}
+            onToggleCart={onToggleCart}
           />
         </CardContent>
       </Card>

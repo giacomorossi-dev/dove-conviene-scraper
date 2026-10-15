@@ -10,11 +10,10 @@ import PresetsView from "./components/PresetsView";
 import PresetEditorDialog, {
   type EditorMode,
 } from "./components/PresetEditorDialog";
-import ListsView from "./components/ListsView";
+import ShoppingListView from "./components/ShoppingListView";
 import Topbar, { type View } from "./components/Topbar";
 import Bottombar from "./components/Bottombar";
 import Footer from "./components/Footer";
-import ListEditDialog from "./components/ListEditDialog";
 import ConfirmDialog from "./components/ConfirmDialog";
 import {
   copyName,
@@ -24,16 +23,7 @@ import {
 } from "./lib/presets";
 import { usePresets } from "./lib/usePresets";
 import { useCatalog } from "./lib/useCatalog";
-import {
-  loadLists,
-  saveLists,
-  createList,
-  makeSavedItem,
-  itemKey,
-  isExpired,
-  type List,
-  type RowData,
-} from "./lib/lists";
+import { useShoppingList } from "./lib/useShoppingList";
 import { DEFAULT_PLACE, loadPlace, savePlace } from "./lib/places";
 import { knownRetailers, toSelection } from "./lib/retailers";
 
@@ -41,6 +31,7 @@ const App = () => {
   const catalog = useCatalog();
   const { presets, active, activeId, setActiveId, create, update, remove } =
     usePresets(catalog.retailers);
+  const shopping = useShoppingList();
   const [place, setPlace] = useState<Place>(
     () => loadPlace() ?? loadLegacyActivePlace() ?? DEFAULT_PLACE
   );
@@ -58,23 +49,7 @@ const App = () => {
   const [deletePresetId, setDeletePresetId] = useState<string | null>(null);
   const deletePreset = presets.find((p) => p.id === deletePresetId) ?? null;
 
-  const [lists, setLists] = useState<List[]>(() => loadLists());
-  const [pendingItem, setPendingItem] = useState<RowData | null>(null);
-  const [newListOpen, setNewListOpen] = useState(false);
-  const [editListId, setEditListId] = useState<string | null>(null);
-  const [deleteListId, setDeleteListId] = useState<string | null>(null);
-  const [removeItemTarget, setRemoveItemTarget] = useState<{
-    row: RowData;
-    list: List;
-  } | null>(null);
-
-  const editListTarget = lists.find((l) => l.id === editListId) ?? null;
-  const deleteListTarget = lists.find((l) => l.id === deleteListId) ?? null;
-
   useEffect(() => savePlace(place), [place]);
-  useEffect(() => {
-    saveLists(lists);
-  }, [lists]);
 
   // ---- search ----
 
@@ -181,82 +156,6 @@ const App = () => {
     setDeletePresetId(null);
   };
 
-  // ---- list handlers ----
-
-  const onAddToList = (listId: string, row: RowData) => {
-    setLists(
-      lists.map((l) =>
-        l.id === listId
-          ? {
-              ...l,
-              items: [...l.items, makeSavedItem(row)],
-              updatedAt: Date.now(),
-            }
-          : l
-      )
-    );
-  };
-
-  const onRequestNewList = (row: RowData) => {
-    setPendingItem(row);
-    setNewListOpen(true);
-  };
-
-  const onSubmitNewList = (name: string, color: string) => {
-    const list = createList(name, color);
-    if (pendingItem) list.items.push(makeSavedItem(pendingItem));
-    setLists([...lists, list]);
-    setPendingItem(null);
-  };
-
-  const onSubmitListEdit = (name: string, color: string) => {
-    if (!editListId) return;
-    setLists(
-      lists.map((l) =>
-        l.id === editListId ? { ...l, name, color, updatedAt: Date.now() } : l
-      )
-    );
-    setEditListId(null);
-  };
-
-  const onConfirmDeleteList = () => {
-    if (!deleteListId) return;
-    setLists(lists.filter((l) => l.id !== deleteListId));
-    setDeleteListId(null);
-  };
-
-  const onRemoveExpired = (id: string) => {
-    setLists(
-      lists.map((l) =>
-        l.id === id
-          ? {
-              ...l,
-              items: l.items.filter((i) => !isExpired(i.validUntil)),
-              updatedAt: Date.now(),
-            }
-          : l
-      )
-    );
-  };
-
-  const onConfirmRemoveItem = () => {
-    if (!removeItemTarget) return;
-    const { row, list } = removeItemTarget;
-    const key = itemKey(row);
-    setLists(
-      lists.map((l) =>
-        l.id === list.id
-          ? {
-              ...l,
-              items: l.items.filter((i) => itemKey(i) !== key),
-              updatedAt: Date.now(),
-            }
-          : l
-      )
-    );
-    setRemoveItemTarget(null);
-  };
-
   return (
     <>
       <Topbar
@@ -264,22 +163,20 @@ const App = () => {
         onChangeView={setView}
         place={place}
         onPlaceChange={setPlace}
+        shoppingCount={shopping.toBuy}
       />
       {/* The topbar wraps the location onto a second row below `sm`. */}
       <main className="pt-32 pb-24 sm:pt-20">
         <div className="container">
-          {view === "lists" ? (
-            <ListsView
-              lists={lists}
-              onAddToList={onAddToList}
-              onRequestNewList={onRequestNewList}
-              onRequestRemove={(row, list) =>
-                setRemoveItemTarget({ row, list })
-              }
-              onRequestRename={(id) => setEditListId(id)}
-              onRequestRecolor={(id) => setEditListId(id)}
-              onRequestDelete={(id) => setDeleteListId(id)}
-              onRemoveExpired={onRemoveExpired}
+          {view === "shopping" ? (
+            <ShoppingListView
+              items={shopping.items}
+              bySlug={catalog.bySlug}
+              onTogglePurchased={shopping.setPurchased}
+              onRemove={shopping.remove}
+              onRemovePurchased={shopping.removePurchased}
+              onRemoveExpired={shopping.removeExpired}
+              onGoToResults={() => setView("main")}
             />
           ) : view === "presets" ? (
             <PresetsView
@@ -295,12 +192,8 @@ const App = () => {
               preset={active}
               bySlug={catalog.bySlug}
               results={results}
-              lists={lists}
-              onAddToList={onAddToList}
-              onRequestNewList={onRequestNewList}
-              onRequestRemoveItem={(row, list) =>
-                setRemoveItemTarget({ row, list })
-              }
+              isInCart={shopping.has}
+              onToggleCart={shopping.toggle}
               onRequestCreate={openCreate}
               onRequestEdit={() => active && openEdit(active.id)}
             />
@@ -341,63 +234,6 @@ const App = () => {
         confirmLabel="Elimina"
         destructive
         onConfirm={onConfirmDeletePreset}
-      />
-
-      <ListEditDialog
-        open={newListOpen}
-        onOpenChange={(o) => {
-          setNewListOpen(o);
-          if (!o) setPendingItem(null);
-        }}
-        title="Nuova lista"
-        submitLabel="Crea"
-        onSubmit={onSubmitNewList}
-      />
-
-      <ListEditDialog
-        open={editListId !== null}
-        onOpenChange={(o) => !o && setEditListId(null)}
-        title="Modifica lista"
-        submitLabel="Salva"
-        initialName={editListTarget?.name ?? ""}
-        initialColor={editListTarget?.color}
-        onSubmit={onSubmitListEdit}
-      />
-
-      <ConfirmDialog
-        open={deleteListId !== null}
-        onOpenChange={(o) => !o && setDeleteListId(null)}
-        title="Eliminare la lista?"
-        description={
-          deleteListTarget && (
-            <>
-              Stai per eliminare <strong>«{deleteListTarget.name}»</strong> con{" "}
-              {deleteListTarget.items.length} prodott
-              {deleteListTarget.items.length === 1 ? "o" : "i"}. L'azione non
-              può essere annullata.
-            </>
-          )
-        }
-        confirmLabel="Elimina"
-        destructive
-        onConfirm={onConfirmDeleteList}
-      />
-
-      <ConfirmDialog
-        open={removeItemTarget !== null}
-        onOpenChange={(o) => !o && setRemoveItemTarget(null)}
-        title="Rimuovere il prodotto?"
-        description={
-          removeItemTarget && (
-            <>
-              Rimuovere <strong>«{removeItemTarget.row.productName}»</strong> da{" "}
-              <strong>«{removeItemTarget.list.name}»</strong>?
-            </>
-          )
-        }
-        confirmLabel="Rimuovi"
-        destructive
-        onConfirm={onConfirmRemoveItem}
       />
     </>
   );
