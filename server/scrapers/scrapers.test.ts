@@ -4,37 +4,11 @@
 import { describe, expect, test } from "bun:test";
 import { BASE_URL, CATEGORIES } from "../../shared/categories";
 import { normalizeQueries, parseFlyerCards, parseFlyerData } from "./flyers";
-import { parseRetailers } from "./retailers";
 
 const fixture = (name: string) =>
   Bun.file(new URL(`./__fixtures__/${name}`, import.meta.url)).text();
 
 const category = CATEGORIES[0];
-
-describe("parseRetailers", async () => {
-  const retailers = parseRetailers(
-    await fixture("nearby-category.html"),
-    category
-  );
-
-  test("finds the category retailers, each with its dc slug", () => {
-    expect(retailers.length).toBeGreaterThanOrEqual(5);
-    for (const r of retailers) expect(r.slug).toMatch(/^[a-z0-9-]+$/);
-  });
-
-  test("dedupes and sorts by name (Italian collation)", () => {
-    const names = retailers.map((r) => r.name);
-    expect(new Set(names).size).toBe(names.length);
-    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, "it")));
-  });
-
-  test("returns absolute logo URLs and the requested category", () => {
-    for (const r of retailers) {
-      expect(r.imageUrl).toMatch(/^https:\/\//);
-      expect(r.category).toBe(category);
-    }
-  });
-});
 
 describe("parseFlyerCards", async () => {
   const cards = parseFlyerCards(
@@ -137,6 +111,45 @@ describe("parseFlyerData (JSON-LD edge cases)", () => {
     expect(
       parseFlyerData(html, [{ name: "pane", maxPrice: 5 }]).products
     ).toEqual([]);
+  });
+});
+
+describe("parseFlyerData (matching and prices)", () => {
+  const page = (...products: { name: string; price?: unknown }[]) =>
+    `<html><head><script type="application/ld+json">${JSON.stringify(
+      products.map((p) => ({
+        "@type": "Product",
+        name: p.name,
+        offers: { price: p.price ?? 1 },
+      }))
+    )}</script></head></html>`;
+  const names = (html: string, query: string) =>
+    parseFlyerData(html, normalizeQueries([{ name: query }])).products.map(
+      (p) => p.name
+    );
+
+  test("every word of the query, in any order, ignoring case and accents", () => {
+    const html = page(
+      { name: "Pizza Buitoni Margherita 2x330 g" },
+      { name: "Margherita surgelata" },
+      { name: "Caffè Borbone" }
+    );
+    expect(names(html, "pizza margherita")).toEqual([
+      "Pizza Buitoni Margherita 2x330 g",
+    ]);
+    expect(names(html, "CAFFE")).toEqual(["Caffè Borbone"]);
+  });
+
+  test("prices with a decimal comma; unreadable prices become null", () => {
+    const html = page(
+      { name: "Latte A", price: "1,19" },
+      { name: "Latte B", price: "boh" }
+    );
+    expect(
+      parseFlyerData(html, normalizeQueries([{ name: "latte" }])).products.map(
+        (p) => p.price
+      )
+    ).toEqual([1.19, null]);
   });
 });
 

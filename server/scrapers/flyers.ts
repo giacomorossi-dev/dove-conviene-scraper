@@ -2,16 +2,41 @@ import * as cheerio from "cheerio";
 import type { Category } from "../../shared/categories";
 import type { Flyer, Product, ProductQuery } from "../../shared/types";
 import { absoluteUrl, collapseSpaces, fetchHtml, normalize } from "../http";
+import { ttlCache } from "../ttl-cache";
 
 export interface NormalizedQuery {
+  /** Folded: lowercase, single spaces, no accents. */
   name: string;
   maxPrice?: number;
 }
 
+/** How names are compared: lowercase, single spaces, no accents. */
+const fold = (s: string): string =>
+  normalize(s)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 export const normalizeQueries = (products: ProductQuery[]): NormalizedQuery[] =>
   products
-    .map((p) => ({ name: normalize(p.name), maxPrice: p.maxPrice }))
+    .map((p) => ({ name: fold(p.name), maxPrice: p.maxPrice }))
     .filter((q) => q.name);
+
+/** Every word of the query, in any order: "pizza margherita" finds "Pizza Buitoni Margherita". */
+const matches = (name: string, query: NormalizedQuery): boolean => {
+  const folded = fold(name);
+  return query.name.split(" ").every((word) => folded.includes(word));
+};
+
+/** "1.19", "1,19" or 1.19; anything else is no price. */
+const toPrice = (v: unknown): number | null => {
+  const n =
+    typeof v === "number"
+      ? v
+      : typeof v === "string"
+        ? Number(v.replace(",", "."))
+        : NaN;
+  return Number.isFinite(n) ? n : null;
+};
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -59,22 +84,50 @@ export interface FlyerData {
   validUntil: string | null;
 }
 
+/**
+ * Parsed flyer pages, by URL. A flyerId's content doesn't change, so a search
+ * repeated with other products costs dc nothing.
+ */
+const flyerPages = ttlCache<FlyerData>(60 * 60 * 1000);
+
 export async function getFlyerData(
   flyer: Flyer,
-  queries: NormalizedQuery[]
+  queries: NormalizedQuery[],
+  signal?: AbortSignal
 ): Promise<FlyerData> {
-  if (!flyer.url) return { products: [], validUntil: null };
-  return parseFlyerData(await fetchHtml(flyer.url), queries);
+  const url = flyer.url;
+  if (!url) return { products: [], validUntil: null };
+  const page = await flyerPages.get(url, async () =>
+    parseFlyerPage(await fetchHtml(url, signal))
+  );
+  return filterProducts(page, queries);
 }
 
-/**
- * Extracts the products matching `queries` (and the expiry date) from the
- * JSON-LD blocks of a flyer page.
- */
-export function parseFlyerData(
+/** The products matching `queries` (and the expiry date) of a flyer page. */
+export const parseFlyerData = (
   html: string,
   queries: NormalizedQuery[]
+): FlyerData => filterProducts(parseFlyerPage(html), queries);
+
+function filterProducts(
+  page: FlyerData,
+  queries: NormalizedQuery[]
 ): FlyerData {
+  return {
+    validUntil: page.validUntil,
+    products: page.products.filter((p) => {
+      const query = queries.find((q) => matches(p.name, q));
+      if (!query) return false;
+      return (
+        query.maxPrice === undefined ||
+        (p.price !== null && p.price <= query.maxPrice)
+      );
+    }),
+  };
+}
+
+/** Every product (and the expiry date) in the JSON-LD blocks of a flyer page. */
+function parseFlyerPage(html: string): FlyerData {
   const $ = cheerio.load(html);
 
   const products: Product[] = [];
@@ -108,24 +161,10 @@ export function parseFlyerData(
       const name = item["name"];
       if (typeof name !== "string" || !name) continue;
 
-      const n = normalize(name);
-      const match = queries.find((q) => n.includes(q.name));
-      if (!match) continue;
-
       const images = getStringArray(item["image"]);
       const imageUrl = images[0] ?? null;
-
-      let price: number | null = null;
       const offers = item["offers"];
-      if (isRecord(offers)) {
-        const p = offers["price"];
-        if (typeof p === "string") price = Number(p);
-        else if (typeof p === "number") price = p;
-      }
-
-      if (match.maxPrice !== undefined) {
-        if (price === null || price > match.maxPrice) continue;
-      }
+      const price = isRecord(offers) ? toPrice(offers["price"]) : null;
 
       products.push({ name, imageUrl, price });
     }

@@ -87,4 +87,9 @@ export interface ScrapeRequest {
 }
 
 /** One NDJSON line streamed back by POST /api/scraper. */
-export type ScrapeMessage = { flyer: Flyer } | { error: string };
+export type ScrapeMessage =
+  | { flyer: Flyer }
+  /** A flyer that couldn't be read: the search goes on with the others. */
+  | { flyerError: { name: string; url: string; error: string } }
+  /** A problem not tied to one flyer, e.g. a category page dc didn't give. */
+  | { error: string };

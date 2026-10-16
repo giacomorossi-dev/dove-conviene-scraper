@@ -113,8 +113,11 @@ export async function fetchWithRetry(
   }
 }
 
-export async function fetchHtml(url: string): Promise<string> {
-  const res = await fetchWithRetry(url, { headers: BROWSER_HEADERS });
+export async function fetchHtml(
+  url: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const res = await fetchWithRetry(url, { headers: BROWSER_HEADERS, signal });
   if (!res.ok) throw new HttpError(url, res.status);
   return res.text();
 }
