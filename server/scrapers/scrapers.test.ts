@@ -44,7 +44,7 @@ describe("parseFlyerCards", async () => {
 describe("parseFlyerData (fixture)", async () => {
   const html = await fixture("flyer.html");
   // An empty query matches every product: handy to inspect the whole flyer.
-  const all = parseFlyerData(html, [{ name: "" }]);
+  const all = parseFlyerData(html, [{ name: "", label: "tutto" }]);
 
   test("extracts products with prices from JSON-LD", () => {
     expect(all.products.length).toBeGreaterThan(0);
@@ -60,20 +60,25 @@ describe("parseFlyerData (fixture)", async () => {
   });
 
   test("filters by product query and max price", () => {
-    const target = all.products.find((p) => p.price !== null);
-    if (!target || target.price === null) throw new Error("no priced product");
-    const [query] = normalizeQueries([{ name: target.name }]);
+    const found = all.products.find((p) => p.price !== null);
+    if (!found || found.price === null) throw new Error("no priced product");
+    const price = found.price;
+    const [query] = normalizeQueries([{ name: found.name }]);
+    // Found again by its own name, it says so.
+    const target = { ...found, query: found.name };
 
     expect(parseFlyerData(html, [query]).products).toContainEqual(target);
     expect(
-      parseFlyerData(html, [{ ...query, maxPrice: target.price }]).products
+      parseFlyerData(html, [{ ...query, maxPrice: price }]).products
     ).toContainEqual(target);
     expect(
-      parseFlyerData(html, [{ ...query, maxPrice: target.price - 0.01 }])
-        .products
+      parseFlyerData(html, [{ ...query, maxPrice: price - 0.01 }]).products
     ).not.toContainEqual(target);
     expect(
-      parseFlyerData(html, [{ name: "prodotto-inesistente-xyz" }]).products
+      parseFlyerData(
+        html,
+        normalizeQueries([{ name: "prodotto-inesistente-xyz" }])
+      ).products
     ).toEqual([]);
   });
 });
@@ -109,6 +114,7 @@ describe("parseFlyerData (JSON-LD edge cases)", () => {
             name: "Latte Intero 1L",
             imageUrl: "https://img/1.png",
             price: 1.19,
+            query: "latte",
           },
         ],
       }
@@ -119,9 +125,12 @@ describe("parseFlyerData (JSON-LD edge cases)", () => {
     const html = page(
       JSON.stringify({ "@type": "Product", name: "Pane", offers: {} })
     );
-    expect(parseFlyerData(html, [{ name: "pane" }]).products).toHaveLength(1);
     expect(
-      parseFlyerData(html, [{ name: "pane", maxPrice: 5 }]).products
+      parseFlyerData(html, [{ name: "pane", label: "pane" }]).products
+    ).toHaveLength(1);
+    expect(
+      parseFlyerData(html, [{ name: "pane", label: "pane", maxPrice: 5 }])
+        .products
     ).toEqual([]);
   });
 });
@@ -152,6 +161,23 @@ describe("parseFlyerData (matching and prices)", () => {
     expect(names(html, "CAFFE")).toEqual(["Caffè Borbone"]);
   });
 
+  test("each product says which searched product found it (the first that matches)", () => {
+    const html = page(
+      { name: "Latte intero" },
+      { name: "Nutella 750 g" },
+      { name: "Latte e Nutella" }
+    );
+    const found = parseFlyerData(
+      html,
+      normalizeQueries([{ name: " Nutella " }, { name: "latte" }])
+    ).products;
+    expect(found.map((p) => [p.name, p.query])).toEqual([
+      ["Latte intero", "latte"],
+      ["Nutella 750 g", "Nutella"],
+      ["Latte e Nutella", "Nutella"],
+    ]);
+  });
+
   test("prices with a decimal comma; unreadable prices become null", () => {
     const html = page(
       { name: "Latte A", price: "1,19" },
@@ -174,8 +200,8 @@ describe("normalizeQueries", () => {
         { name: "Latte" },
       ])
     ).toEqual([
-      { name: "burro di montagna", maxPrice: 4 },
-      { name: "latte", maxPrice: undefined },
+      { name: "burro di montagna", label: "Burro DI montagna", maxPrice: 4 },
+      { name: "latte", label: "Latte", maxPrice: undefined },
     ]);
   });
 });

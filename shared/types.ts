@@ -20,6 +20,8 @@ export interface Product {
   name: string;
   imageUrl: string | null;
   price: number | null;
+  /** The searched product it was found for, as typed in the preset. */
+  query?: string;
 }
 
 /**

@@ -17,6 +17,8 @@ export interface RowData {
   /** The flyer's own name ("BIS") and cover; missing in older products. */
   flyerTitle?: string;
   flyerImage?: string;
+  /** The searched product it was found for, as typed in the preset. */
+  query?: string;
 }
 
 export interface ShoppingItem extends RowData {

@@ -7,6 +7,8 @@ import { ttlCache } from "../ttl-cache";
 export interface NormalizedQuery {
   /** Folded: lowercase, single spaces, no accents. */
   name: string;
+  /** As typed in the preset (trimmed): what the results are grouped by. */
+  label: string;
   maxPrice?: number;
 }
 
@@ -18,7 +20,11 @@ const fold = (s: string): string =>
 
 export const normalizeQueries = (products: ProductQuery[]): NormalizedQuery[] =>
   products
-    .map((p) => ({ name: fold(p.name), maxPrice: p.maxPrice }))
+    .map((p) => ({
+      name: fold(p.name),
+      label: p.name.trim(),
+      maxPrice: p.maxPrice,
+    }))
     .filter((q) => q.name);
 
 /** Every word of the query, in any order: "pizza margherita" finds "Pizza Buitoni Margherita". */
@@ -154,13 +160,13 @@ function filterProducts(
 ): FlyerData {
   return {
     validUntil: page.validUntil,
-    products: page.products.filter((p) => {
+    products: page.products.flatMap((p) => {
       const query = queries.find((q) => matches(p.name, q));
-      if (!query) return false;
-      return (
+      if (!query) return [];
+      const affordable =
         query.maxPrice === undefined ||
-        (p.price !== null && p.price <= query.maxPrice)
-      );
+        (p.price !== null && p.price <= query.maxPrice);
+      return affordable ? [{ ...p, query: query.label }] : [];
     }),
   };
 }

@@ -20,7 +20,7 @@ import type { RowData } from "@/lib/shopping";
 import type { Retailer } from "@shared/types";
 import FlyerStrip from "./FlyerStrip";
 import PresetSummary from "./PresetSummary";
-import ResultsTable from "./ResultsTable";
+import ResultsByProduct from "./ResultsByProduct";
 
 interface Props {
   preset: Preset | null;
@@ -154,6 +154,7 @@ const ResultsView = ({
           ...(flyer.slug && { retailerSlug: flyer.slug }),
           ...(flyer.title && { flyerTitle: flyer.title }),
           ...(flyer.imageUrl && { flyerImage: flyer.imageUrl }),
+          ...(p.query !== undefined && { query: p.query }),
         }))
       ),
     [search.results]
@@ -167,6 +168,10 @@ const ResultsView = ({
     setExcluded(new Set());
   }
   const shownRows = useMemo(() => onlyFlyers(rows, excluded), [rows, excluded]);
+  const queries = useMemo(
+    () => preset?.products.map((p) => p.name) ?? [],
+    [preset]
+  );
   const toggleFlyer = (url: string, included: boolean) =>
     setExcluded((prev) => {
       const next = new Set(prev);
@@ -227,9 +232,11 @@ const ResultsView = ({
             />
           )}
           {/* A new search starts from fresh filters. */}
-          <ResultsTable
+          <ResultsByProduct
             key={search.id}
             rows={shownRows}
+            queries={queries}
+            running={search.phase === "running"}
             isInCart={isInCart}
             onToggleCart={onToggleCart}
           />

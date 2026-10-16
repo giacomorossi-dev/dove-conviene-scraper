@@ -2,8 +2,8 @@
 
 Progetto personale che cerca le offerte nei volantini di
 [doveconviene.it](https://www.doveconviene.it): scegli località (città o CAP), insegne e prodotti
-(con prezzo massimo opzionale) e ottieni una tabella dei risultati, aggiornata
-in streaming mentre i volantini vengono letti. I prodotti si possono mettere
+(con prezzo massimo opzionale) e ottieni i risultati raggruppati per prodotto,
+dal più conveniente, aggiornati in streaming mentre i volantini vengono letti. I prodotti si possono mettere
 nella lista della spesa (carrello nei risultati) e le ricerche in preset (insegne + prodotti, gestiti nella pagina Preset e
 salvati in `localStorage`; la località resta nella barra in alto).
 

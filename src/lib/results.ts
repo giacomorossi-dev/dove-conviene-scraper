@@ -1,17 +1,6 @@
-// The results table's text filter and sorting, kept out of the component so
-// they can be tested.
-import { parseDay } from "./format";
+// The results' text filter, flyer choice and grouping by searched product,
+// kept out of the components so they can be tested.
 import { isExpired, type RowData } from "./shopping";
-
-export type ResultSortKey =
-  | "productName"
-  | "flyerName"
-  | "validUntil"
-  | "price";
-export interface ResultSort {
-  key: ResultSortKey;
-  dir: "asc" | "desc";
-}
 
 const fold = (s: string): string =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -31,30 +20,6 @@ export function filterRows(
   );
 }
 
-/** A sorted copy; rows without the value (no price, no date) last either way. */
-export function sortRows(rows: readonly RowData[], { key, dir }: ResultSort) {
-  const sign = dir === "asc" ? 1 : -1;
-  const value = (r: RowData): string | number | null =>
-    key === "price"
-      ? r.price
-      : key === "validUntil"
-        ? r.validUntil
-          ? (parseDay(r.validUntil)?.getTime() ?? null)
-          : null
-        : r[key];
-  return [...rows].sort((a, b) => {
-    const va = value(a);
-    const vb = value(b);
-    if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
-    return (
-      sign *
-      (typeof va === "string" && typeof vb === "string"
-        ? va.localeCompare(vb, "it")
-        : (va as number) - (vb as number))
-    );
-  });
-}
-
 /** Rows of the flyers still chosen: `excluded` holds flyer URLs. */
 export const onlyFlyers = (
   rows: readonly RowData[],
@@ -63,3 +28,47 @@ export const onlyFlyers = (
   excluded.size === 0
     ? [...rows]
     : rows.filter((r) => !excluded.has(r.flyerUrl));
+
+export interface ProductGroup {
+  /** The searched product, as typed in the preset. */
+  query: string;
+  /** Cheapest first; offers without a price last. */
+  rows: RowData[];
+  /** The lowest price in the group; null when no offer has one. */
+  best: number | null;
+}
+
+/** "Caffè ", " caffe" and "CAFFÈ" are the same searched product. */
+const queryKey = (q: string) => fold(q).trim().replace(/\s+/g, " ");
+
+/**
+ * One group per searched product, in the preset's order, with or without
+ * offers. Offers for a product the preset no longer has follow, in their own
+ * groups.
+ */
+export function groupByQuery(
+  rows: readonly RowData[],
+  queries: readonly string[]
+): ProductGroup[] {
+  const groups = new Map<string, { query: string; rows: RowData[] }>();
+  const add = (query: string) => {
+    const key = queryKey(query);
+    let group = groups.get(key);
+    if (!group) groups.set(key, (group = { query: query.trim(), rows: [] }));
+    return group;
+  };
+  for (const q of queries) add(q);
+  for (const r of rows) add(r.query ?? "").rows.push(r);
+  return [...groups.values()].map(({ query, rows }) => {
+    const prices = rows.flatMap((r) => (r.price === null ? [] : [r.price]));
+    return {
+      query,
+      rows: rows.toSorted((a, b) =>
+        a.price === null || b.price === null
+          ? Number(a.price === null) - Number(b.price === null)
+          : a.price - b.price
+      ),
+      best: prices.length ? Math.min(...prices) : null,
+    };
+  });
+}
