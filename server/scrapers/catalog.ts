@@ -181,6 +181,9 @@ async function startBuild(
 
 interface BuildOptions {
   onProgress?: (p: BuildProgress) => void;
+  /** dc sessions and pauses: tests pass fakes. */
+  openSession?: (place: Place) => Promise<PlaceSession>;
+  pause?: (ms: number) => Promise<unknown>;
   /** A saved build to continue instead of starting over. */
   resume?: BuildState | null;
   /** Called after every chunk with the state to save. */
@@ -195,13 +198,15 @@ export async function buildCatalog({
   onProgress = () => {},
   resume,
   onCheckpoint = async () => {},
+  openSession = openPlaceSession,
+  pause = sleep,
 }: BuildOptions = {}): Promise<CatalogEntry[]> {
   const state = resume ?? (await startBuild(onProgress));
   const total = Object.keys(state.pages).length;
   const read = new Set(state.read);
 
   // 1. Every retailer page, from Milan: name, category and (mostly) kind.
-  let session = await openPlaceSession(CITIES[0]);
+  let session = await openSession(CITIES[0]);
   let sinceBreak = 0;
   for (const [slug, path] of Object.entries(state.pages)) {
     if (read.has(slug)) continue;
@@ -228,9 +233,9 @@ export async function buildCatalog({
     if (++sinceBreak >= CHUNK) {
       await onCheckpoint(state);
       sinceBreak = 0;
-      await sleep(CHUNK_PAUSE);
-      session = await openPlaceSession(CITIES[0]);
-    } else await sleep(PAGE_DELAY());
+      await pause(CHUNK_PAUSE);
+      session = await openSession(CITIES[0]);
+    } else await pause(PAGE_DELAY());
   }
   await onCheckpoint(state);
 
@@ -240,7 +245,7 @@ export async function buildCatalog({
       ([slug]) => !state.kinds[slug]
     );
     if (unknown.length === 0) break;
-    session = await openPlaceSession(city);
+    session = await openSession(city);
     for (const [i, [slug]] of unknown.entries()) {
       onProgress({ phase: "kinds", done: i, total: unknown.length });
       try {
@@ -249,7 +254,7 @@ export async function buildCatalog({
       } catch {
         /* stays unknown */
       }
-      await sleep(PAGE_DELAY());
+      await pause(PAGE_DELAY());
     }
   }
 
