@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  hasItem,
+  itemKey,
   loadShoppingList,
   saveShoppingList,
   toBuyCount,
@@ -18,16 +18,21 @@ export function useShoppingList() {
   const [items, setItems] = useState<ShoppingItem[]>(loadShoppingList);
 
   useEffect(() => saveShoppingList(items), [items]);
+  // Asked once per result row on every render: a set, not a scan.
+  const keys = useMemo(() => new Set(items.map(itemKey)), [items]);
 
   return {
     items,
     toBuy: toBuyCount(items),
-    has: (row: RowData) => hasItem(items, row),
+    has: (row: RowData) => keys.has(itemKey(row)),
     toggle: (row: RowData) => setItems((prev) => toggleItem(prev, row)),
     setPurchased: (key: string, purchased: boolean) =>
       setItems((prev) => withPurchased(prev, key, purchased)),
     remove: (key: string) => setItems((prev) => withoutItem(prev, key)),
-    removePurchased: () => setItems(withoutPurchased),
-    removeExpired: () => setItems((prev) => withoutExpired(prev)),
+    /** Of the retailer shown (null: all). */
+    removePurchased: (retailer: string | null) =>
+      setItems((prev) => withoutPurchased(prev, retailer)),
+    removeExpired: (retailer: string | null) =>
+      setItems((prev) => withoutExpired(prev, new Date(), retailer)),
   };
 }

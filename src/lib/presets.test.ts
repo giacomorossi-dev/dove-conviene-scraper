@@ -74,6 +74,13 @@ describe("parsePresets", () => {
   });
 });
 
+describe("parsePresets with broken entries", () => {
+  test("entries that aren't presets are dropped instead of breaking the app", () => {
+    const raw = JSON.stringify([null, 3, "x", { name: "senza id" }, preset()]);
+    expect(parsePresets(raw)).toEqual([preset()]);
+  });
+});
+
 describe("storedPresetPlace", () => {
   const raw = JSON.stringify([
     { ...preset({ id: "a" }), place: reggiolo },

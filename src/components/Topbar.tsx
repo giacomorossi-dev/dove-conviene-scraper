@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Logo from "./Logo";
 import LocationPicker from "./LocationPicker";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ const TABS: { view: View; label: string }[] = [
 interface Props {
   view: View;
   onChangeView: (v: View) => void;
-  place: Place | null;
+  place: Place;
   onPlaceChange: (place: Place) => void;
   shoppingCount: number;
 }
@@ -29,6 +29,7 @@ const Topbar = ({
   shoppingCount,
 }: Props) => {
   const [locationOpen, setLocationOpen] = useState(false);
+  const locationTrigger = useRef<HTMLButtonElement>(null);
 
   return (
     <>
@@ -67,6 +68,7 @@ const Topbar = ({
               place={place}
               onChange={onPlaceChange}
               open={locationOpen}
+              triggerRef={locationTrigger}
               onOpenChange={setLocationOpen}
             />
           </div>
@@ -76,7 +78,10 @@ const Topbar = ({
       {locationOpen && (
         <div
           aria-hidden
-          onClick={() => setLocationOpen(false)}
+          onClick={() => {
+            setLocationOpen(false);
+            locationTrigger.current?.focus();
+          }}
           className="fixed inset-0 z-[45] bg-black/40"
         />
       )}

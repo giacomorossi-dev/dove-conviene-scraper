@@ -42,7 +42,12 @@ const App = () => {
   }>({ mode: "create", initial: EMPTY_DRAFT });
   const [editorOpen, setEditorOpen] = useState(false);
   const [deletePresetId, setDeletePresetId] = useState<string | null>(null);
-  const deletePreset = presets.find((p) => p.id === deletePresetId) ?? null;
+  // Kept after the delete, so the closing dialog doesn't read «».
+  const [deleteName, setDeleteName] = useState("");
+  const requestDelete = (id: string) => {
+    setDeleteName(presets.find((p) => p.id === id)?.name ?? "");
+    setDeletePresetId(id);
+  };
 
   useEffect(() => savePlace(place), [place]);
 
@@ -165,7 +170,7 @@ const App = () => {
               onRequestCreate={openCreate}
               onRequestEdit={openEdit}
               onRequestDuplicate={openDuplicate}
-              onRequestDelete={setDeletePresetId}
+              onRequestDelete={requestDelete}
             />
           ) : (
             <ResultsView
@@ -211,7 +216,7 @@ const App = () => {
       <ConfirmDialog
         open={deletePresetId !== null}
         onOpenChange={(o) => !o && setDeletePresetId(null)}
-        title={`Eliminare il preset «${deletePreset?.name ?? ""}»?`}
+        title={`Eliminare il preset «${deleteName}»?`}
         description="L'azione non può essere annullata."
         confirmLabel="Elimina"
         destructive

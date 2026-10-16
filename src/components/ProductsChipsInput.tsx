@@ -2,48 +2,39 @@ import { useState, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/format";
+import { parseProduct } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import type { ProductQuery } from "@shared/types";
 
 interface Props {
   value: ProductQuery[];
   onChange: (next: ProductQuery[]) => void;
+  /** The text typed and not added yet: it counts as a change. */
+  onPendingChange?: (text: string) => void;
   placeholder?: string;
   className?: string;
 }
 
-const parseChip = (raw: string): ProductQuery | null => {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const idx = trimmed.indexOf(",");
-  if (idx === -1) return { name: trimmed };
-
-  const name = trimmed.slice(0, idx).trim();
-  if (!name) return null;
-
-  const priceRaw = trimmed
-    .slice(idx + 1)
-    .trim()
-    .replace(",", ".");
-  const maxPrice = Number(priceRaw);
-  return Number.isFinite(maxPrice) && maxPrice > 0
-    ? { name, maxPrice }
-    : { name };
-};
-
 const ProductsChipsInput = ({
   value,
   onChange,
+  onPendingChange,
   placeholder,
   className,
 }: Props) => {
   const [input, setInput] = useState("");
 
+  const type = (text: string) => {
+    setInput(text);
+    onPendingChange?.(text);
+  };
+
+  /** Adds what's typed: on Enter, and when leaving the field (e.g. Salva). */
   const commit = () => {
-    const parsed = parseChip(input);
+    const parsed = parseProduct(input);
     if (!parsed) return;
     onChange([...value, parsed]);
-    setInput("");
+    type("");
   };
 
   const remove = (i: number) => {
@@ -87,7 +78,8 @@ const ProductsChipsInput = ({
       )}
       <Input
         value={input}
-        onInput={(e) => setInput(e.currentTarget.value)}
+        onChange={(e) => type(e.target.value)}
+        onBlur={commit}
         onKeyDown={onKeyDown}
         placeholder={
           placeholder ?? "es. latte (Invio) — burro,4 per max € 4 (Invio)"

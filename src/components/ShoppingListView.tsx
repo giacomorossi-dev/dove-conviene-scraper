@@ -58,8 +58,9 @@ interface Props {
   bySlug: ReadonlyMap<string, Retailer>;
   onTogglePurchased: (key: string, purchased: boolean) => void;
   onRemove: (key: string) => void;
-  onRemovePurchased: () => void;
-  onRemoveExpired: () => void;
+  /** Only the products of `retailer` (null: all), as the page shows. */
+  onRemovePurchased: (retailer: string | null) => void;
+  onRemoveExpired: (retailer: string | null) => void;
   onGoToResults: () => void;
 }
 
@@ -107,8 +108,12 @@ const ShoppingListView = ({
     ...retailers.map((r) => ({ label: r, value: r as string | null })),
   ];
   const groups = groupByFlyer(items, sort, shownRetailer);
-  const purchasedCount = items.filter((i) => i.purchased).length;
-  const expiredCount = items.filter((i) => isExpired(i.validUntil)).length;
+  // The buttons act on what is shown.
+  const shown = items.filter(
+    (i) => !shownRetailer || i.flyerName === shownRetailer
+  );
+  const purchasedCount = shown.filter((i) => i.purchased).length;
+  const expiredCount = shown.filter((i) => isExpired(i.validUntil)).length;
 
   return (
     <div className="space-y-4">
@@ -155,24 +160,18 @@ const ShoppingListView = ({
         <Button
           variant="outline"
           disabled={purchasedCount === 0}
-          onClick={onRemovePurchased}
+          onClick={() => onRemovePurchased(shownRetailer)}
         >
           Rimuovi acquistati ({purchasedCount})
         </Button>
         <Button
           variant="outline"
           disabled={expiredCount === 0}
-          onClick={onRemoveExpired}
+          onClick={() => onRemoveExpired(shownRetailer)}
         >
           Rimuovi scaduti ({expiredCount})
         </Button>
       </div>
-
-      {groups.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          Nessun prodotto per questa insegna.
-        </p>
-      )}
 
       {groups.map((g) => {
         const logo = g.retailerSlug
@@ -195,7 +194,9 @@ const ShoppingListView = ({
                       (isExpired(g.validUntil) ? (
                         <Badge variant="destructive">Scaduto</Badge>
                       ) : (
-                        <span>Scade il {formatDate(g.validUntil)}</span>
+                        <span className="whitespace-nowrap">
+                          Scade il {formatDate(g.validUntil)}
+                        </span>
                       ))}
                     <span>{groupCountsLabel(g.items.length, g.purchased)}</span>
                   </CardDescription>
@@ -222,49 +223,45 @@ const ShoppingListView = ({
                     <Item
                       key={key}
                       size="sm"
-                      render={<label />}
-                      className={cn(
-                        "cursor-pointer",
-                        it.purchased && "opacity-60"
-                      )}
+                      className={cn(it.purchased && "opacity-60")}
                     >
-                      <ItemMedia>
-                        <Checkbox
-                          checked={it.purchased}
-                          aria-label={`Acquistato: ${it.productName}`}
-                          onCheckedChange={(checked) =>
-                            onTogglePurchased(key, checked)
-                          }
-                        />
-                      </ItemMedia>
-                      {it.productImage && (
-                        <ItemMedia variant="image">
-                          <img src={it.productImage} alt="" loading="lazy" />
+                      {/* Ticks "purchased" from anywhere on the product;
+                          the × stays outside the label. */}
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
+                        <ItemMedia>
+                          <Checkbox
+                            checked={it.purchased}
+                            aria-label={`Acquistato: ${it.productName}`}
+                            onCheckedChange={(checked) =>
+                              onTogglePurchased(key, checked)
+                            }
+                          />
                         </ItemMedia>
-                      )}
-                      <ItemContent>
-                        <ItemTitle
-                          className={cn(it.purchased && "line-through")}
-                        >
-                          {it.productName}
-                        </ItemTitle>
-                        {it.price !== null && (
-                          <ItemDescription>
-                            {formatPrice(it.price)}
-                          </ItemDescription>
+                        {it.productImage && (
+                          <ItemMedia variant="image">
+                            <img src={it.productImage} alt="" loading="lazy" />
+                          </ItemMedia>
                         )}
-                      </ItemContent>
+                        <ItemContent>
+                          <ItemTitle
+                            className={cn(it.purchased && "line-through")}
+                          >
+                            {it.productName}
+                          </ItemTitle>
+                          {it.price !== null && (
+                            <ItemDescription>
+                              {formatPrice(it.price)}
+                            </ItemDescription>
+                          )}
+                        </ItemContent>
+                      </label>
                       <ItemActions>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
                           aria-label={`Togli ${it.productName}`}
-                          onClick={(e) => {
-                            // Inside the row's <label>: don't tick the box.
-                            e.preventDefault();
-                            onRemove(key);
-                          }}
+                          onClick={() => onRemove(key)}
                         >
                           <X />
                         </Button>

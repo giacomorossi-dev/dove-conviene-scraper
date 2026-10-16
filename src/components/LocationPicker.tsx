@@ -1,6 +1,12 @@
 // dc-style location picker: "Sei qui: Rimini - 47921" in the topbar opens a
 // panel under it with town / postal code suggestions and "Trovami".
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 import { ChevronDown, LocateFixed, MapPin, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +16,12 @@ import { cn } from "@/lib/utils";
 import type { Place, PlaceSuggestion } from "@shared/types";
 
 interface Props {
-  place: Place | null;
+  place: Place;
   onChange: (place: Place) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The "Sei qui" button: focus goes back to it when the panel closes. */
+  triggerRef: RefObject<HTMLButtonElement | null>;
 }
 
 const MIN_QUERY = 2;
@@ -48,18 +56,25 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   );
 }
 
-const LocationPicker = ({ place, onChange, open, onOpenChange }: Props) => {
+const LocationPicker = ({
+  place,
+  onChange,
+  open,
+  onOpenChange,
+  triggerRef,
+}: Props) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
+  /** The query `results` answer: older ones aren't shown while typing on. */
+  const [resultsFor, setResultsFor] = useState("");
   const [highlighted, setHighlighted] = useState(0);
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const panelId = useId();
   const listId = useId();
-  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const q = query.trim();
-  const suggestions = q.length >= MIN_QUERY ? results : [];
+  const suggestions = q.length >= MIN_QUERY && resultsFor === q ? results : [];
 
   useEffect(() => {
     if (q.length < MIN_QUERY) return;
@@ -69,6 +84,7 @@ const LocationPicker = ({ place, onChange, open, onOpenChange }: Props) => {
         .then((r) => (r.ok ? r.json() : []))
         .then((items: PlaceSuggestion[]) => {
           setResults(items);
+          setResultsFor(q);
           setHighlighted(0);
         })
         .catch(() => {});
@@ -88,7 +104,7 @@ const LocationPicker = ({ place, onChange, open, onOpenChange }: Props) => {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onOpenChange]);
+  }, [open, onOpenChange, triggerRef]);
 
   const toggle = () => {
     if (!open) {
@@ -101,6 +117,7 @@ const LocationPicker = ({ place, onChange, open, onOpenChange }: Props) => {
   const choose = ({ name, zip, lat, lng }: PlaceSuggestion | Place) => {
     onChange({ name, zip, lat, lng });
     onOpenChange(false);
+    triggerRef.current?.focus();
   };
 
   const locate = () => {
@@ -158,9 +175,7 @@ const LocationPicker = ({ place, onChange, open, onOpenChange }: Props) => {
       >
         <span className="shrink-0 text-muted-foreground">Sei qui:</span>
         {/* Keeps "Sei qui: Rimini" readable as one phrase for screen readers. */}{" "}
-        <span className="truncate font-semibold">
-          {place ? placeLabel(place) : "scegli una località"}
-        </span>
+        <span className="truncate font-semibold">{placeLabel(place)}</span>
         <ChevronDown
           className={cn(
             "size-4 shrink-0 text-primary transition-transform",
@@ -198,7 +213,7 @@ const LocationPicker = ({ place, onChange, open, onOpenChange }: Props) => {
                   setHighlighted(0);
                 }}
                 onKeyDown={onKeyDown}
-                placeholder={place ? placeLabel(place) : "Città o CAP"}
+                placeholder={placeLabel(place)}
                 autoComplete="off"
                 className="pr-9"
               />

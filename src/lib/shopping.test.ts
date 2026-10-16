@@ -138,6 +138,36 @@ describe("purchased and removals", () => {
   });
 });
 
+describe("removals with a retailer filter", () => {
+  const conad = item({ flyerName: "Conad", purchased: true });
+  const coop = item({
+    flyerName: "Coop",
+    productName: "Pane",
+    purchased: true,
+  });
+  const oldCoop = item({
+    flyerName: "Coop",
+    productName: "Uova",
+    validUntil: "2026-10-01",
+  });
+  const oldConad = item({
+    flyerName: "Conad",
+    productName: "Olio",
+    validUntil: "2026-10-01",
+  });
+
+  test("only the filtered retailer's purchased products go", () => {
+    expect(withoutPurchased([conad, coop], "Coop")).toEqual([conad]);
+    expect(withoutPurchased([conad, coop], null)).toEqual([]);
+  });
+
+  test("only the filtered retailer's expired products go", () => {
+    expect(withoutExpired([oldConad, oldCoop], NOW, "Coop")).toEqual([
+      oldConad,
+    ]);
+  });
+});
+
 describe("groupByFlyer", () => {
   const conad = (over: Partial<ShoppingItem>) =>
     item({

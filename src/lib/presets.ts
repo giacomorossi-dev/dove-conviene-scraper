@@ -75,7 +75,15 @@ const parseStored = (raw: string | null): StoredPreset[] => {
   if (!raw) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as StoredPreset[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Anything that isn't a preset is dropped rather than breaking the app.
+    return parsed.filter(
+      (p): p is StoredPreset =>
+        typeof p === "object" &&
+        p !== null &&
+        typeof p.id === "string" &&
+        typeof p.name === "string"
+    );
   } catch {
     return [];
   }

@@ -58,6 +58,8 @@ const PresetEditorDialog = ({
   const [step, setStep] = useState(0);
   const [showNameError, setShowNameError] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** A product typed in step 3 and not added yet. */
+  const [pending, setPending] = useState("");
 
   // Start over from `initial`, on the first step, each time it opens.
   const [prevOpen, setPrevOpen] = useState(open);
@@ -67,6 +69,7 @@ const PresetEditorDialog = ({
       setDraft(initial);
       setStep(0);
       setShowNameError(false);
+      setPending("");
     }
   }
 
@@ -98,7 +101,7 @@ const PresetEditorDialog = ({
 
   // Esc, the X and a click outside all land here: ask before losing changes.
   const requestClose = () => {
-    if (sameDraft(draft, initial)) onOpenChange(false);
+    if (sameDraft(draft, initial) && !pending.trim()) onOpenChange(false);
     else setConfirmDiscard(true);
   };
 
@@ -180,6 +183,7 @@ const PresetEditorDialog = ({
                 <ProductsChipsInput
                   value={draft.products}
                   onChange={(products) => setDraft({ ...draft, products })}
+                  onPendingChange={setPending}
                 />
               </div>
             )}

@@ -176,14 +176,26 @@ export const withoutItem = (
   key: string
 ): ShoppingItem[] => items.filter((i) => itemKey(i) !== key);
 
-export const withoutPurchased = (
-  items: readonly ShoppingItem[]
-): ShoppingItem[] => items.filter((i) => !i.purchased);
+/** Whether a product is shown with this retailer filter (null: all). */
+const shownWith = (i: ShoppingItem, retailer: string | null) =>
+  !retailer || i.flyerName === retailer;
 
+/** Removes the purchased products of the retailer shown (null: all). */
+export const withoutPurchased = (
+  items: readonly ShoppingItem[],
+  retailer: string | null = null
+): ShoppingItem[] =>
+  items.filter((i) => !(i.purchased && shownWith(i, retailer)));
+
+/** Removes the expired products of the retailer shown (null: all). */
 export const withoutExpired = (
   items: readonly ShoppingItem[],
-  now = new Date()
-): ShoppingItem[] => items.filter((i) => !isExpired(i.validUntil, now));
+  now = new Date(),
+  retailer: string | null = null
+): ShoppingItem[] =>
+  items.filter(
+    (i) => !(isExpired(i.validUntil, now) && shownWith(i, retailer))
+  );
 
 /** The products still to buy: the topbar's counter. */
 export const toBuyCount = (items: readonly ShoppingItem[]): number =>
