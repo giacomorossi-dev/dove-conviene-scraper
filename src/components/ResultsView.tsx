@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import type { Preset } from "@/lib/presets";
-import type { SearchState } from "@/lib/search";
+import { progress, type SearchState } from "@/lib/search";
 import type { RowData } from "@/lib/shopping";
 import type { Retailer } from "@shared/types";
 import PresetSummary from "./PresetSummary";
@@ -22,6 +22,7 @@ import ResultsTable from "./ResultsTable";
 
 interface Props {
   preset: Preset | null;
+  presets: Preset[];
   bySlug: ReadonlyMap<string, Retailer>;
   catalogReady: boolean;
   search: SearchState & { id: number };
@@ -29,6 +30,11 @@ interface Props {
   onToggleCart: (row: RowData) => void;
   onRequestCreate: () => void;
   onRequestEdit: () => void;
+  onSelectPreset: (id: string) => void;
+  /** Why the preset can't be searched; null when it can. */
+  searchBlocker: string | null;
+  onSearch: () => void;
+  onCancel: () => void;
 }
 
 const flyers = (n: number) => `${n} volantin${n === 1 ? "o" : "i"}`;
@@ -43,12 +49,35 @@ function SearchStatus({ search, rows }: { search: SearchState; rows: number }) {
         Premi Cerca per leggere i volantini delle insegne del preset.
       </p>
     );
-  if (phase === "running")
+  if (phase === "running") {
+    const { done, total } = progress(search);
+    if (total === null)
+      return (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner /> Ricerca in corso: cerco i volantini vicini…
+        </p>
+      );
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner /> Ricerca in corso… {read(flyersRead)}
-      </p>
+      <div className="grid gap-1.5">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner /> Ricerca in corso… {done} di {flyers(total)}
+        </p>
+        <div
+          role="progressbar"
+          aria-label="Volantini letti"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={done}
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
+        >
+          <div
+            className="h-full bg-primary transition-[width] duration-300"
+            style={{ width: `${total ? (100 * done) / total : 0}%` }}
+          />
+        </div>
+      </div>
     );
+  }
   if (phase === "failed")
     return (
       <p className="flex items-center gap-2 text-sm text-destructive">
@@ -97,6 +126,7 @@ function SearchWarnings({ search }: { search: SearchState }) {
 
 const ResultsView = ({
   preset,
+  presets,
   bySlug,
   catalogReady,
   search,
@@ -104,6 +134,10 @@ const ResultsView = ({
   onToggleCart,
   onRequestCreate,
   onRequestEdit,
+  onSelectPreset,
+  searchBlocker,
+  onSearch,
+  onCancel,
 }: Props) => {
   const rows = useMemo<RowData[]>(
     () =>
@@ -145,9 +179,15 @@ const ResultsView = ({
     <div className="space-y-4">
       <PresetSummary
         preset={preset}
+        presets={presets}
         bySlug={bySlug}
         catalogReady={catalogReady}
+        onSelect={onSelectPreset}
         onEdit={onRequestEdit}
+        running={search.phase === "running"}
+        blocker={searchBlocker}
+        onSearch={onSearch}
+        onCancel={onCancel}
       />
       <Card>
         <CardHeader>

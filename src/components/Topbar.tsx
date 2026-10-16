@@ -74,7 +74,7 @@ const Topbar = ({
           </div>
         </div>
       </header>
-      {/* Dims the page (bottombar included) but not the header, like dc. */}
+      {/* Dims the page but not the header, like dc. */}
       {locationOpen && (
         <div
           aria-hidden

@@ -44,6 +44,8 @@ const collect = async (gen: AsyncGenerator<ScrapeMessage>) => {
   for await (const m of gen) out.push(m);
   return out;
 };
+/** Everything after the { total } that opens every search. */
+const afterTotal = (out: ScrapeMessage[]) => out.filter((m) => !("total" in m));
 
 describe("scrapeFlyersStream", () => {
   test("only the chosen retailers, by slug: Conad doesn't pull in Conad City", async () => {
@@ -58,7 +60,7 @@ describe("scrapeFlyersStream", () => {
       )
     );
     expect(d.read).toEqual(["conad", "eurospin"]);
-    expect(out.every((m) => "flyer" in m)).toBe(true);
+    expect(afterTotal(out).every((m) => "flyer" in m)).toBe(true);
   });
 
   test("retailers saved by name only still match by exact name", async () => {
@@ -82,8 +84,27 @@ describe("scrapeFlyersStream", () => {
       )
     );
     expect(d.read).toEqual(["conad", "coop"]);
-    expect(out[0]).toMatchObject({ flyerError: { name: "Conad" } });
-    expect(out[1]).toMatchObject({ flyer: { name: "Coop" } });
+    const [first, second] = afterTotal(out);
+    expect(first).toMatchObject({ flyerError: { name: "Conad" } });
+    expect(second).toMatchObject({ flyer: { name: "Coop" } });
+  });
+
+  test("says how many flyers it will read before reading them", async () => {
+    const out = await collect(
+      scrapeFlyersStream(
+        place,
+        [
+          flyer("Conad", "conad"),
+          flyer("Coop", "coop"),
+          flyer("Eurospin", "eurospin", discount),
+        ],
+        [{ name: "latte" }],
+        undefined,
+        deps()
+      )
+    );
+    expect(out[0]).toEqual({ total: 3 });
+    expect(out.slice(1).every((m) => "flyer" in m)).toBe(true);
   });
 
   test("stops reading when the search is cancelled", async () => {
@@ -102,9 +123,9 @@ describe("scrapeFlyersStream", () => {
       d
     )) {
       out.push(m);
-      controller.abort();
+      if ("flyer" in m) controller.abort();
     }
-    expect(out).toHaveLength(1);
+    expect(afterTotal(out)).toHaveLength(1);
     expect(d.read).toHaveLength(1);
   });
 });

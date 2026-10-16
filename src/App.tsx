@@ -7,7 +7,6 @@ import PresetEditorDialog, {
 } from "./components/PresetEditorDialog";
 import ShoppingListView from "./components/ShoppingListView";
 import Topbar, { type View } from "./components/Topbar";
-import Bottombar from "./components/Bottombar";
 import Footer from "./components/Footer";
 import ConfirmDialog from "./components/ConfirmDialog";
 import {
@@ -101,8 +100,9 @@ const App = () => {
       : null;
   };
 
+  // Opens over the current page: created from Risultati, you stay there,
+  // ready to search the new preset.
   const openCreate = () => {
-    setView("presets");
     setEditor({ mode: "create", initial: EMPTY_DRAFT });
     setEditorOpen(true);
   };
@@ -151,7 +151,7 @@ const App = () => {
         onPlaceChange={onPlaceChange}
         shoppingCount={shopping.toBuy}
       />
-      <main className="pt-6 pb-24">
+      <main className="pt-6 pb-10">
         <div className="container">
           {view === "shopping" ? (
             <ShoppingListView
@@ -182,25 +182,17 @@ const App = () => {
               onToggleCart={shopping.toggle}
               onRequestCreate={openCreate}
               onRequestEdit={() => active && openEdit(active.id)}
+              presets={presets}
+              onSelectPreset={onSelectPreset}
+              searchBlocker={searchBlocker}
+              onSearch={onSearch}
+              onCancel={search.cancel}
             />
           )}
         </div>
       </main>
 
       <Footer />
-
-      {view === "main" && (
-        <Bottombar
-          presets={presets}
-          activeId={activeId}
-          bySlug={catalog.bySlug}
-          onSelectPreset={onSelectPreset}
-          running={search.phase === "running"}
-          blocker={searchBlocker}
-          onSearch={onSearch}
-          onCancel={search.cancel}
-        />
-      )}
 
       <PresetEditorDialog
         open={editorOpen}

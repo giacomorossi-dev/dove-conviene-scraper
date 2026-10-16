@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { CATEGORIES } from "@shared/categories";
-import { applyLine, IDLE, lineSplitter, started } from "./search";
+import { applyLine, IDLE, lineSplitter, progress, started } from "./search";
 
 describe("lineSplitter", () => {
   test("lines split across chunks are put back together; blank lines dropped", () => {
@@ -43,6 +43,21 @@ describe("applyLine", () => {
     );
     expect(s.errors).toEqual(["Categoria non letta"]);
     expect(applyLine(s, "{oops")).toBe(s);
+  });
+
+  test("the total of flyers to read is known once the server says it", () => {
+    expect(started().total).toBeNull();
+    expect(applyLine(started(), JSON.stringify({ total: 12 })).total).toBe(12);
+  });
+
+  test("progress counts flyers read and flyers dc didn't give", () => {
+    let s = applyLine(started(), JSON.stringify({ total: 3 }));
+    s = applyLine(s, JSON.stringify({ flyer }));
+    s = applyLine(
+      s,
+      JSON.stringify({ flyerError: { name: "Coop", url: "", error: "x" } })
+    );
+    expect(progress(s)).toEqual({ done: 2, total: 3 });
   });
 
   test("starting a search starts from scratch", () => {

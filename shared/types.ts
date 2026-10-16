@@ -90,6 +90,8 @@ export interface ScrapeRequest {
 
 /** One NDJSON line streamed back by POST /api/scraper. */
 export type ScrapeMessage =
+  /** How many flyers will be read: sent once, before the first one. */
+  | { total: number }
   | { flyer: Flyer }
   /** A flyer that couldn't be read: the search goes on with the others. */
   | { flyerError: { name: string; url: string; error: string } }

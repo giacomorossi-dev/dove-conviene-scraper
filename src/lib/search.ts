@@ -24,6 +24,8 @@ export type SearchPhase = "idle" | "running" | "done" | "failed" | "cancelled";
 
 export interface SearchState {
   phase: SearchPhase;
+  /** Flyers the search will read; null until the server says. */
+  total: number | null;
   /** Flyers read, with the products they matched (possibly none). */
   results: Flyer[];
   /** Flyers read so far (the ones dc didn't give are in `unread`). */
@@ -36,6 +38,7 @@ export interface SearchState {
 
 export const IDLE: SearchState = {
   phase: "idle",
+  total: null,
   results: [],
   flyersRead: 0,
   unread: [],
@@ -52,6 +55,7 @@ export function applyLine(state: SearchState, line: string): SearchState {
   } catch {
     return state;
   }
+  if ("total" in msg) return { ...state, total: msg.total };
   if ("flyer" in msg)
     return {
       ...state,
@@ -63,3 +67,9 @@ export function applyLine(state: SearchState, line: string): SearchState {
   if ("error" in msg) return { ...state, errors: [...state.errors, msg.error] };
   return state;
 }
+
+/** Flyers done (read or not given by dc) out of the total, once known. */
+export const progress = (state: SearchState) => ({
+  done: state.flyersRead + state.unread.length,
+  total: state.total,
+});

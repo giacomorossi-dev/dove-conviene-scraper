@@ -75,6 +75,9 @@ export async function* scrapeFlyersStream(
     }
   }
 
+  if (signal?.aborted) return;
+  yield { total: matched.length };
+
   for (const flyer of matched) {
     if (signal?.aborted) return;
     try {
