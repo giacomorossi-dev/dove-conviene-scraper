@@ -24,9 +24,16 @@ export async function openPlaceSession(place: Place): Promise<PlaceSession> {
       },
     });
     for (const header of res.headers.getSetCookie()) {
-      const [pair] = header.split(";");
+      const [pair, ...attributes] = header.split(";");
       const eq = pair.indexOf("=");
-      cookies.set(pair.slice(0, eq).trim(), pair.slice(eq + 1));
+      if (eq <= 0) continue; // not a name=value cookie
+      const name = pair.slice(0, eq).trim();
+      // Max-Age=0 (or negative) is how a server deletes a cookie.
+      const expired = attributes.some((a) =>
+        /^\s*max-age\s*=\s*(0|-\d+)\s*$/i.test(a)
+      );
+      if (expired) cookies.delete(name);
+      else cookies.set(name, pair.slice(eq + 1));
     }
     return res;
   };

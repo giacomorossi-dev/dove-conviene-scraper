@@ -77,7 +77,11 @@ export function toSuggestions(features: PhotonFeature[]): PlaceSuggestion[] {
 
 async function photon(path: string, params: Record<string, string>) {
   const url = `${PHOTON}${path}?${new URLSearchParams(params)}`;
-  const res = await fetch(url, { headers: HEADERS });
+  // Photon is a public service: don't let a hung request hang the search.
+  const res = await fetch(url, {
+    headers: HEADERS,
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
   return ((await res.json()) as { features?: PhotonFeature[] }).features ?? [];
 }

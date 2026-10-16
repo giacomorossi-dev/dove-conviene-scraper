@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   isPostcodeQuery,
+  searchPlaces,
   toPlace,
   toSuggestions,
   type PhotonFeature,
@@ -102,5 +103,25 @@ describe("toPlace", () => {
       toPlace([feature({ name: "Nice", countrycode: "FR" })], 43.7, 7.26)
     ).toBeNull();
     expect(toPlace([], 0, 0)).toBeNull();
+  });
+});
+
+describe("Photon requests", () => {
+  test("have a timeout, so a hung Photon can't hang the location search", async () => {
+    const realFetch = globalThis.fetch;
+    let signal: AbortSignal | undefined;
+    globalThis.fetch = (async (
+      _url: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      signal = init?.signal ?? undefined;
+      return new Response(JSON.stringify({ features: [] }));
+    }) as unknown as typeof fetch;
+    try {
+      await searchPlaces("zzz-timeout-test");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    expect(signal).toBeInstanceOf(AbortSignal);
   });
 });

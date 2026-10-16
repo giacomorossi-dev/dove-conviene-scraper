@@ -33,7 +33,7 @@ describe("retailerPages", () => {
   });
 });
 
-describe("parseRetailerPage", async () => {
+describe("parseRetailerPage", () => {
   test("reads name and category from the breadcrumb", async () => {
     expect(parseRetailerPage(await fixture("retailer.html"))).toEqual({
       name: "Conad",

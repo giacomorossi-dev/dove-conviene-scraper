@@ -1,7 +1,7 @@
 // Refreshes the HTML fixtures used by the scraper tests with live pages.
 // Run `bun run fixtures:update`, then `bun test`: failing tests mean
 // doveconviene.it changed its markup and the parsers need an update.
-import { BASE_URL, CATEGORIES } from "../shared/categories";
+import { BASE_URL, CATEGORIES, categorySlug } from "../shared/categories";
 import { fetchHtml } from "../server/http";
 import { parseFlyerCards } from "../server/scrapers/flyers";
 import { openPlaceSession } from "../server/session";
@@ -9,7 +9,6 @@ import { openPlaceSession } from "../server/session";
 const DIR = new URL("../server/scrapers/__fixtures__/", import.meta.url);
 const RIMINI = { name: "Rimini", zip: "47921", lat: 44.0594, lng: 12.5684 };
 const category = CATEGORIES[0];
-const categorySlug = category.url.split("/").pop();
 
 const save = async (name: string, html: string) => {
   await Bun.write(new URL(name, DIR), html);
@@ -19,7 +18,9 @@ const save = async (name: string, html: string) => {
 await save("retailer.html", await fetchHtml(`${BASE_URL}/volantino/conad`));
 
 const session = await openPlaceSession(RIMINI);
-const nearbyPage = await session.fetchHtml(`${BASE_URL}/${categorySlug}`);
+const nearbyPage = await session.fetchHtml(
+  `${BASE_URL}/${categorySlug(category)}`
+);
 await save("nearby-category.html", nearbyPage);
 
 const flyer = parseFlyerCards(nearbyPage, category).find((f) => f.url);
