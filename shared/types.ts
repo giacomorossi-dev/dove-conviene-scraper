@@ -84,6 +84,8 @@ export interface ScrapeRequest {
   place: Place;
   flyers: Flyer[];
   products: ProductQuery[];
+  /** Lets the page cancel the search (POST /api/scraper/cancel). */
+  searchId?: string;
 }
 
 /** One NDJSON line streamed back by POST /api/scraper. */

@@ -98,6 +98,21 @@ describe("dc queue", () => {
     expect(sent).toHaveLength(3);
   });
 
+  test("a request cancelled while queued is skipped and doesn't hold up the next", async () => {
+    fakeFetch([{ status: 200, ms: 100 }]);
+    const cancelled = new AbortController();
+    const a = fetchWithRetry(url("a"));
+    const b = fetchWithRetry(url("b"), { signal: cancelled.signal }).catch(
+      () => "aborted"
+    );
+    const c = fetchWithRetry(url("c"));
+    setTimeout(() => cancelled.abort(), 20);
+    await Promise.all([a, b, c]);
+    expect(sent.map((s) => s.url)).toEqual([url("a"), url("c")]);
+    // c follows a by its duration and one gap, not by an extra gap for b.
+    expect(sent[1].at - sent[0].at).toBeLessThan(100 + 2 * 40 - 10);
+  });
+
   test("a request the caller aborted is not retried", async () => {
     fakeFetch([{ status: 200, ms: 200 }]);
     const controller = new AbortController();

@@ -83,13 +83,15 @@ export function createCatalogStore(
 
   function accept(entries: CatalogEntry[]): CatalogEntry[] {
     const current = retailers.length;
-    if (entries.length === 0)
+    // Counted as the app will show them: categories it doesn't know drop out.
+    const usable = toRetailers(entries).length;
+    if (usable === 0)
       throw new RejectedList(
         "dc non ha dato nessuna insegna: riprova più tardi"
       );
-    if (current > 0 && entries.length < current * MIN_KEEP)
+    if (current > 0 && usable < current * MIN_KEEP)
       throw new RejectedList(
-        `il nuovo elenco ha solo ${entries.length} insegne contro ${current}: forse dc è cambiato, tengo quello attuale`
+        `il nuovo elenco ha solo ${usable} insegne contro ${current}: forse dc è cambiato, tengo quello attuale`
       );
     return entries;
   }

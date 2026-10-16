@@ -67,24 +67,30 @@ describe("POST /api/scraper", () => {
     expect(res.status).toBe(403);
   });
 
-  test("stops searching when the page closes the connection", async () => {
+  test("a client that stays connected gets the whole search", async () => {
+    produced = 0;
+    const res = await post(JSON.stringify({ place, flyers: [], products: [] }));
+    const lines = (await res.text()).trim().split("\n");
+    expect(lines).toHaveLength(30);
+  });
+
+  test("a search stops when its page cancels it", async () => {
     produced = 0;
     finished = false;
-    const controller = new AbortController();
-    const res = await fetch(`${base}/api/scraper`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ place, flyers: [], products: [] }),
-      signal: controller.signal,
-    });
+    const res = await post(
+      JSON.stringify({ place, flyers: [], products: [], searchId: "s-1" })
+    );
     const reader = res.body!.getReader();
     await reader.read();
-    controller.abort();
-    await new Promise((r) => setTimeout(r, 400));
-    // Bun only lets us notice by polling (every 250 ms): the fake search
-    // makes one result every 30 ms and would go on to 30.
+    const cancel = await fetch(`${base}/api/scraper/cancel`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ searchId: "s-1" }),
+    });
+    expect(cancel.status).toBe(204);
+    await new Promise((r) => setTimeout(r, 150));
     expect(finished).toBe(true);
-    expect(produced).toBeLessThan(15);
+    expect(produced).toBeLessThan(6);
   });
 });
 

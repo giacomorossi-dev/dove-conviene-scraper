@@ -27,12 +27,12 @@ describe("applyLine", () => {
     expect(s.flyersRead).toBe(1);
   });
 
-  test("a flyer dc didn't give counts as read and is listed as unread", () => {
+  test("a flyer dc didn't give is listed as unread, not counted as read", () => {
     const s = applyLine(
       started(),
       JSON.stringify({ flyerError: { name: "Coop", url: "", error: "404" } })
     );
-    expect(s.flyersRead).toBe(1);
+    expect(s.flyersRead).toBe(0);
     expect(s.unread).toEqual(["Coop"]);
   });
 

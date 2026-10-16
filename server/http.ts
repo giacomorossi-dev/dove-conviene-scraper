@@ -43,23 +43,45 @@ let dcHoldUntil = 0;
 
 const isDc = (url: string) => new URL(url).host === DC_HOST;
 
-async function politely<T>(url: string, send: () => Promise<T>): Promise<T> {
+/** Like sleep, but over as soon as `signal` aborts. */
+const pause = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+
+async function politely<T>(
+  url: string,
+  send: () => Promise<T>,
+  signal?: AbortSignal
+): Promise<T> {
   if (!isDc(url)) return send();
   const previous = dcQueue;
   let release!: () => void;
   dcQueue = new Promise((r) => (release = r));
   await previous;
+  let sent = false;
   try {
     // Checked again after each pause: a request that just failed may have
     // pushed the hold further while this one was waiting.
     for (;;) {
+      // Cancelled while queued: never sent, and the next one doesn't wait for it.
+      if (signal?.aborted) throw signal.reason;
       const wait = Math.max(dcLast + dcPacing.minGap, dcHoldUntil) - Date.now();
       if (wait <= 0) break;
-      await sleep(wait);
+      await pause(wait, signal);
     }
+    sent = true;
     return await send();
   } finally {
-    dcLast = Date.now();
+    if (sent) dcLast = Date.now();
     release();
   }
 }
@@ -92,13 +114,17 @@ export async function fetchWithRetry(
     try {
       // The timer starts when the request leaves the queue, not while it
       // waits behind others.
-      const res = await politely(url, () => {
-        const timeout = AbortSignal.timeout(dcPacing.timeout);
-        const signal = init?.signal
-          ? AbortSignal.any([init.signal, timeout])
-          : timeout;
-        return fetch(url, { ...init, signal });
-      });
+      const res = await politely(
+        url,
+        () => {
+          const timeout = AbortSignal.timeout(dcPacing.timeout);
+          const signal = init?.signal
+            ? AbortSignal.any([init.signal, timeout])
+            : timeout;
+          return fetch(url, { ...init, signal });
+        },
+        init?.signal ?? undefined
+      );
       const retryable = res.status === 429 || res.status >= 500;
       if (!retryable || attempt >= dcPacing.retryDelays.length) return res;
       delay = retryAfter(res) ?? delay;

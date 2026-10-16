@@ -26,7 +26,7 @@ export interface SearchState {
   phase: SearchPhase;
   /** Flyers read, with the products they matched (possibly none). */
   results: Flyer[];
-  /** Flyers read so far, including the ones dc didn't give. */
+  /** Flyers read so far (the ones dc didn't give are in `unread`). */
   flyersRead: number;
   /** Retailers of the flyers dc didn't give. */
   unread: string[];
@@ -59,11 +59,7 @@ export function applyLine(state: SearchState, line: string): SearchState {
       results: [...state.results, msg.flyer],
     };
   if ("flyerError" in msg)
-    return {
-      ...state,
-      flyersRead: state.flyersRead + 1,
-      unread: [...state.unread, msg.flyerError.name],
-    };
+    return { ...state, unread: [...state.unread, msg.flyerError.name] };
   if ("error" in msg) return { ...state, errors: [...state.errors, msg.error] };
   return state;
 }

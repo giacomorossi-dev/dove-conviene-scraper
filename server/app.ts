@@ -1,9 +1,7 @@
 // The HTTP API. index.ts starts it; tests build it with fakes.
 import express, {
   type ErrorRequestHandler,
-  type Request,
   type RequestHandler,
-  type Response,
 } from "express";
 import type {
   Flyer,
@@ -40,7 +38,7 @@ const isQuery = (p: unknown) =>
 
 /**
  * Writes only from this app: a page on another website could otherwise
- * start a 45-minute crawl of dc from this computer's IP.
+ * start an hour-long crawl of dc from this computer's IP.
  */
 const sameSiteWrites: RequestHandler = (req, res, next) => {
   if (req.method !== "GET" && req.get("sec-fetch-site") === "cross-site") {
@@ -49,22 +47,6 @@ const sameSiteWrites: RequestHandler = (req, res, next) => {
   }
   next();
 };
-
-/**
- * Aborts when the page that asked goes away. Node emits "close" on the
- * response; Bun's node:http emits nothing on a client disconnect, so the
- * socket's state is checked as well.
- */
-function abortOnDisconnect(req: Request, res: Response) {
-  const stop = new AbortController();
-  const check = () => {
-    if (!res.writableFinished && (req.destroyed || res.socket?.destroyed))
-      stop.abort();
-  };
-  res.on("close", check);
-  const timer = setInterval(check, 250);
-  return { signal: stop.signal, done: () => clearInterval(timer) };
-}
 
 /** Short JSON errors instead of Express' HTML page with a stack trace. */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Express spots error handlers by their 4 parameters
@@ -81,6 +63,12 @@ export function createApp({
   scrape = scrapeFlyersStream,
 }: Partial<AppDeps> = {}) {
   const app = express();
+  /**
+   * Running searches, by the id their page gave them. Bun's node:http gives
+   * no signal when a client disconnects, so the page cancels explicitly
+   * (Annulla, another search, leaving the page).
+   */
+  const running = new Map<string, AbortController>();
   app.use(sameSiteWrites);
   app.use(express.json());
 
@@ -142,22 +130,38 @@ export function createApp({
     res.setHeader("content-type", "application/x-ndjson");
     res.setHeader("cache-control", "no-cache");
     res.setHeader("x-accel-buffering", "no");
-    // The page went away: stop reading flyers from dc for nobody.
-    const { signal, done } = abortOnDisconnect(req, res);
+    const searchId =
+      typeof req.body.searchId === "string" ? req.body.searchId : null;
+    const stop = new AbortController();
+    if (searchId) {
+      running.get(searchId)?.abort();
+      running.set(searchId, stop);
+    }
+    // Node reports a client that went away; Bun doesn't (see `running`).
+    res.on("close", () => {
+      if (!res.writableFinished) stop.abort();
+    });
     try {
-      for await (const msg of scrape(place, flyers, products, signal)) {
-        if (signal.aborted) break;
+      for await (const msg of scrape(place, flyers, products, stop.signal)) {
+        if (stop.signal.aborted) break;
         res.write(ndjson(msg));
       }
     } catch (err) {
-      if (!signal.aborted) {
+      if (!stop.signal.aborted) {
         console.error(err);
         res.write(ndjson({ error: String(err) }));
       }
     } finally {
-      done();
+      if (searchId && running.get(searchId) === stop) running.delete(searchId);
     }
     res.end();
+  });
+
+  // Stops a running search: its page doesn't need it any more.
+  app.post("/api/scraper/cancel", (req, res) => {
+    const searchId = req.body?.searchId;
+    if (typeof searchId === "string") running.get(searchId)?.abort();
+    res.status(204).end();
   });
 
   app.use(jsonErrors);

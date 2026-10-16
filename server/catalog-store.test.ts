@@ -57,6 +57,20 @@ describe("catalog store", () => {
     expect(file.retailers).toHaveLength(10);
   });
 
+  test("retailers in categories the app doesn't know count as missing", async () => {
+    const dir = await tempDir();
+    await saveList(dir, 10);
+    const renamed = entries(10).map((e, i) =>
+      i < 5 ? { ...e, categorySlug: "categoria-rinominata" } : e
+    );
+    const store = createCatalogStore(dir, async () => renamed);
+    await store.init();
+    store.update();
+    await idle(store);
+    expect(store.getCatalog()).toHaveLength(10);
+    expect(store.getStatus().error).toContain("tengo");
+  });
+
   test("a similar new list replaces it", async () => {
     const dir = await tempDir();
     await saveList(dir, 10);

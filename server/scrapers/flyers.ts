@@ -97,10 +97,36 @@ export async function getFlyerData(
 ): Promise<FlyerData> {
   const url = flyer.url;
   if (!url) return { products: [], validUntil: null };
-  const page = await flyerPages.get(url, async () =>
-    parseFlyerPage(await fetchHtml(url, signal))
+  // The download is shared with any other search of this flyer, so it isn't
+  // tied to this caller's signal: a cancelled search just stops waiting.
+  const page = await untilAborted(
+    flyerPages.get(url, async () => parseFlyerPage(await fetchHtml(url))),
+    signal
   );
   return filterProducts(page, queries);
+}
+
+/** `promise`, or a rejection as soon as `signal` aborts. */
+function untilAborted<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal
+): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (err) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      }
+    );
+  });
 }
 
 /** The products matching `queries` (and the expiry date) of a flyer page. */

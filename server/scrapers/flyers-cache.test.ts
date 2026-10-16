@@ -40,3 +40,32 @@ test("searching the same flyer again doesn't download it again", async () => {
   expect(calls).toBe(1);
   dcPacing.minGap = 300;
 });
+
+test("a search that's cancelled doesn't make another search of the same flyer fail", async () => {
+  dcPacing.minGap = 0;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 80));
+    return new Response(
+      `<script type="application/ld+json">${JSON.stringify([
+        { "@type": "Product", name: "Latte", offers: { price: 1 } },
+      ])}</script>`
+    );
+  }) as unknown as typeof fetch;
+  const flyer = {
+    name: "Conad",
+    imageUrl: "",
+    category: CATEGORIES[0],
+    url: `${BASE_URL}/x/conad?flyerId=shared-test`,
+  };
+  const queries = normalizeQueries([{ name: "latte" }]);
+  const cancelled = new AbortController();
+  const first = getFlyerData(flyer, queries, cancelled.signal);
+  const second = getFlyerData(flyer, queries);
+  setTimeout(() => cancelled.abort(), 20);
+  await expect(first).rejects.toThrow();
+  expect((await second).products).toHaveLength(1);
+  expect(calls).toBe(1);
+  dcPacing.minGap = 300;
+});

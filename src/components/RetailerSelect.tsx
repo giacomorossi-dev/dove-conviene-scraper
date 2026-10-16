@@ -182,8 +182,8 @@ const RetailerSelect = ({ value, onChange, catalog }: Props) => {
             <p>
               <strong>Prima configurazione.</strong> Sto scaricando da dc
               l'elenco completo delle insegne. Va piano apposta per non
-              sovraccaricare dc: circa 45 minuti. Se chiudi l'app riprende da
-              dove era arrivata.
+              sovraccaricare dc: circa un'ora. Se chiudi l'app riprende da dove
+              era arrivata.
             </p>
             <BuildBar progress={status.progress} />
           </>

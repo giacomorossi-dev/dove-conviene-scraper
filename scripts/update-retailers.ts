@@ -7,7 +7,7 @@ import {
   updateCatalog,
 } from "../server/catalog-store";
 
-console.log(`Building the retailer list into ${DATA_DIR} (about 45 minutes)…`);
+console.log(`Building the retailer list into ${DATA_DIR} (about an hour)…`);
 updateCatalog();
 let last = "";
 while (getCatalogStatus().building) {
