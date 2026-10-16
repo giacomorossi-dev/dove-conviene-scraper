@@ -1,8 +1,7 @@
 // Builds the national list of dc retailers ("insegne") from dc's sitemaps:
 // the retailer sitemap, the per-city ones (Milan, Rome, Bologna) and the
 // flyer sitemap. Each retailer page carries its category in the breadcrumb.
-// It's stored locally by ../catalog-store; local chains that only show up
-// "nelle vicinanze" come from ./nearby.
+// It's stored locally by ../catalog-store.
 import * as cheerio from "cheerio";
 import { BASE_URL } from "../../shared/categories";
 import type { BuildProgress, Place } from "../../shared/types";
@@ -71,7 +70,11 @@ export function parseRetailerPage(
   $('script[type="application/ld+json"]').each((_, el) => {
     try {
       const data = JSON.parse($(el).text());
-      if (data?.["@type"] === "BreadcrumbList") crumbs = data.itemListElement;
+      if (
+        data?.["@type"] === "BreadcrumbList" &&
+        Array.isArray(data.itemListElement)
+      )
+        crumbs = data.itemListElement;
     } catch {
       /* not JSON */
     }
@@ -101,7 +104,7 @@ export function countStoreLinks(
   return { own, others: links.length - own };
 }
 
-// Polite pacing for a build that runs in the background (about 45 minutes):
+// Polite pacing for a build that runs in the background (about an hour):
 // one retailer page every 1.5–2.5 s, and a one-minute break every 50 pages.
 // On top of this every dc request goes through the queue in ../http.
 const PAGE_DELAY = () => 1_500 + Math.random() * 1_000;
@@ -130,18 +133,27 @@ export interface BuildState {
   read: string[];
   found: Record<string, Omit<CatalogEntry, "kind">>;
   kinds: Record<string, CatalogEntry["kind"]>;
+  /** Pages dc didn't give in the current run; they stay unread, to retry. */
   unreachable: number;
+  /** Other cities already used to tell stores from brands (phase 2). */
+  kindsCity?: number;
 }
 
 async function fetchSitemap(url: string): Promise<string> {
   const res = await fetchWithRetry(url, { headers: BROWSER_HEADERS });
   if (!res.ok) throw new HttpError(url, res.status);
-  return new TextDecoder().decode(
-    Bun.gunzipSync(new Uint8Array(await res.arrayBuffer()))
-  );
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  // Still gzipped, unless dc served it with Content-Encoding: gzip and fetch
+  // already unpacked it.
+  const gzipped = bytes[0] === 0x1f && bytes[1] === 0x8b;
+  return new TextDecoder().decode(gzipped ? Bun.gunzipSync(bytes) : bytes);
 }
 
-/** A retailer page, trying the other page kinds if dc moved it; null if gone. */
+/**
+ * A retailer page, trying the other page kinds if dc moved it; null if it's
+ * gone (404/410 everywhere). Anything else (dc refusing, overloaded, down)
+ * is thrown, so it counts as unreachable instead of dropping the retailer.
+ */
 async function retailerHtml(
   session: PlaceSession,
   path: string
@@ -151,7 +163,9 @@ async function retailerHtml(
     try {
       return await session.fetchHtml(`${BASE_URL}/${k}/${slug}`);
     } catch (err) {
-      if (!(err instanceof HttpError)) throw err; // network: give up
+      const gone =
+        err instanceof HttpError && (err.status === 404 || err.status === 410);
+      if (!gone) throw err;
     }
   }
   return null;
@@ -202,15 +216,19 @@ export async function buildCatalog({
   pause = sleep,
 }: BuildOptions = {}): Promise<CatalogEntry[]> {
   const state = resume ?? (await startBuild(onProgress));
+  // Failures count per run: a resumed build retries the pages it missed.
+  state.unreachable = 0;
   const total = Object.keys(state.pages).length;
   const read = new Set(state.read);
 
   // 1. Every retailer page, from Milan: name, category and (mostly) kind.
-  let session = await openSession(CITIES[0]);
+  // The session is opened only if there is something left to read.
+  let session: PlaceSession | null = null;
   let sinceBreak = 0;
   for (const [slug, path] of Object.entries(state.pages)) {
     if (read.has(slug)) continue;
     onProgress({ phase: "pages", done: read.size, total });
+    session ??= await openSession(CITIES[0]);
     try {
       const html = await retailerHtml(session, path);
       if (html) {
@@ -219,6 +237,8 @@ export async function buildCatalog({
           state.found[slug] = { ...page, slug, imageUrl: logoUrl(slug) };
         classify(state, slug, html);
       }
+      read.add(slug);
+      state.read.push(slug);
     } catch {
       state.unreachable++;
       if (state.unreachable > total * MAX_FAILURES) {
@@ -228,34 +248,36 @@ export async function buildCatalog({
         );
       }
     }
-    read.add(slug);
-    state.read.push(slug);
     if (++sinceBreak >= CHUNK) {
       await onCheckpoint(state);
       sinceBreak = 0;
       await pause(CHUNK_PAUSE);
-      session = await openSession(CITIES[0]);
+      session = null;
     } else await pause(PAGE_DELAY());
   }
   await onCheckpoint(state);
 
-  // 2. Retailers with no stores near Milan: look again from other cities.
-  for (const city of CITIES.slice(1)) {
-    const unknown = Object.entries(state.found).filter(
-      ([slug]) => !state.kinds[slug]
+  // 2. Retailers with no stores near Milan: look again from other cities,
+  // saving progress after each one.
+  const others = CITIES.slice(1);
+  for (let c = state.kindsCity ?? 0; c < others.length; c++) {
+    const unknown = Object.keys(state.found).filter(
+      (slug) => !state.kinds[slug]
     );
     if (unknown.length === 0) break;
-    session = await openSession(city);
-    for (const [i, [slug]] of unknown.entries()) {
-      onProgress({ phase: "kinds", done: i, total: unknown.length });
+    onProgress({ phase: "kinds", done: c, total: others.length });
+    const citySession = await openSession(others[c]);
+    for (const slug of unknown) {
       try {
-        const html = await retailerHtml(session, state.pages[slug]);
+        const html = await retailerHtml(citySession, state.pages[slug]);
         if (html) classify(state, slug, html);
       } catch {
         /* stays unknown */
       }
       await pause(PAGE_DELAY());
     }
+    state.kindsCity = c + 1;
+    await onCheckpoint(state);
   }
 
   // No stores anywhere: banks, online shops, services.

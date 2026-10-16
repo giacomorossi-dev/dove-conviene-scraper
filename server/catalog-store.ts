@@ -20,6 +20,14 @@ export const DATA_DIR =
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 /** A saved partial build older than this starts over. */
 const MAX_RESUME_AGE = 2 * 24 * 60 * 60 * 1000;
+/**
+ * A new list shorter than this share of the current one is suspicious (dc
+ * changed its pages, or refused many of them): the current one stays.
+ */
+const MIN_KEEP = 0.8;
+
+/** A finished build whose list is not trusted; the next one starts over. */
+class RejectedList extends Error {}
 
 interface StoredCatalog {
   version: 1;
@@ -73,6 +81,19 @@ export function createCatalogStore(
     };
   }
 
+  function accept(entries: CatalogEntry[]): CatalogEntry[] {
+    const current = retailers.length;
+    if (entries.length === 0)
+      throw new RejectedList(
+        "dc non ha dato nessuna insegna: riprova più tardi"
+      );
+    if (current > 0 && entries.length < current * MIN_KEEP)
+      throw new RejectedList(
+        `il nuovo elenco ha solo ${entries.length} insegne contro ${current}: forse dc è cambiato, tengo quello attuale`
+      );
+    return entries;
+  }
+
   async function loadPartial(): Promise<BuildState | null> {
     try {
       const state = JSON.parse(await readFile(PARTIAL, "utf8")) as BuildState;
@@ -96,9 +117,10 @@ export function createCatalogStore(
           onCheckpoint: (state) => writeJson(PARTIAL, state),
         })
       )
-      .then(save)
-      .catch((err) => {
+      .then((entries) => save(accept(entries)))
+      .catch(async (err) => {
         console.error("retailer list build failed:", err);
+        if (err instanceof RejectedList) await rm(PARTIAL, { force: true });
         status = {
           ...status,
           error: err instanceof Error ? err.message : String(err),
@@ -124,7 +146,7 @@ export function createCatalogStore(
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
       console.log(
-        `No retailer list in ${dir}: building it slowly, about 45 minutes`
+        `No retailer list in ${dir}: building it slowly, about an hour`
       );
     }
     if (isStale()) update();
