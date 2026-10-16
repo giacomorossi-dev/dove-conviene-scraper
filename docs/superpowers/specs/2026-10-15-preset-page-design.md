@@ -1,6 +1,9 @@
 # Pagina Preset — design
 
-Data: 2026-10-15 · Stato: da approvare
+Data: 2026-10-15 · Stato: implementato
+
+> La vista "Le mie liste" citata qui è stata poi sostituita dalla lista della
+> spesa: vedi `2026-10-15-shopping-list-design.md`.
 
 ## Obiettivo
 

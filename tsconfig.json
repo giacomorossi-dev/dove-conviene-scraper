@@ -7,6 +7,8 @@
     { "path": "./tsconfig.test.json" }
   ],
   "compilerOptions": {
+    // Not redundant with the projects' own paths: `bun test` and editors
+    // resolve @/ and @shared/ in src/**/*.test.ts through this file.
     "paths": {
       "@/*": ["./src/*"],
       "@shared/*": ["./shared/*"]

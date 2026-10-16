@@ -31,4 +31,6 @@ jobs:
       - run: bun run format:check
       - run: bun run lint
       - run: bun run test
+      # Dates are calendar days: a zone west of Greenwich catches UTC parsing.
+      - run: TZ=America/Los_Angeles bun run test
       - run: bun run build

@@ -1,6 +1,9 @@
 # Lista della spesa — design
 
-Data: 2026-10-15 · Stato: da approvare
+Data: 2026-10-15 · Stato: implementato
+
+> Aggiornato il 16/10: "Rimuovi acquistati/scaduti" agiscono solo su ciò che il
+> filtro per insegna mostra (decisione del proprietario dopo la revisione).
 
 ## Obiettivo
 
