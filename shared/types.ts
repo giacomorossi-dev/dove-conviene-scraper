@@ -64,7 +64,9 @@ export interface CatalogStatus {
  * place with the matching products.
  */
 export interface Flyer {
+  /** The retailer, e.g. "Conad". */
   name: string;
+  /** The cover of the flyer; for a retailer choice, its logo. */
   imageUrl: string;
   category: Category;
   /** Retailer slug; missing in presets saved before it existed. */
@@ -72,6 +74,12 @@ export interface Flyer {
   url?: string;
   validUntil?: string;
   products?: Product[];
+  /** The flyer's own name, e.g. "BIS", "Sottocosto". */
+  title?: string;
+  /** As dc says it: "Scade domenica", "Valido da domani". */
+  validity?: string;
+  /** To the nearest store: "277 m", "1.1 km". */
+  distance?: string;
 }
 
 export interface ProductQuery {

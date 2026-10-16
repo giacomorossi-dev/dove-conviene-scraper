@@ -43,6 +43,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { retailerInitials } from "@/lib/retailers";
 import {
   groupByFlyer,
+  flyerLabel,
   groupCountsLabel,
   isExpired,
   itemKey,
@@ -188,7 +189,7 @@ const ShoppingListView = ({
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid min-w-0 gap-1">
-                  <CardTitle>{g.flyerName}</CardTitle>
+                  <CardTitle>{flyerLabel(g.flyerName, g.flyerTitle)}</CardTitle>
                   <CardDescription className="flex flex-wrap items-center gap-2">
                     {g.validUntil &&
                       (isExpired(g.validUntil) ? (

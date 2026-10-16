@@ -69,12 +69,25 @@ export function parseFlyerCards(html: string, category: Category): Flyer[] {
       const slug = href.match(
         /^(?:https?:\/\/[^/]+)?\/[^/]+\/([^/]+)\/(?:volantino|offerte|catalogo)\//
       )?.[1];
+      // The cover's alt is the flyer's own name ("BIS", "Sottocosto").
+      const title = collapseSpaces(
+        $el.find(".flyerCard__image").attr("alt") ?? ""
+      );
+      const validity = collapseSpaces(
+        $el.find(".flyerCard__detailsPrimary").text()
+      );
+      const distance = collapseSpaces(
+        $el.find(".flyerCard__detailsSecondary").text()
+      );
       return {
         name,
         slug,
         url: href ? absoluteUrl(href) : "",
         imageUrl: dataBg ? absoluteUrl(dataBg) : "",
         category,
+        ...(title && { title }),
+        ...(validity && { validity }),
+        ...(distance && { distance }),
       };
     });
 }

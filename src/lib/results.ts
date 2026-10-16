@@ -54,3 +54,12 @@ export function sortRows(rows: readonly RowData[], { key, dir }: ResultSort) {
     );
   });
 }
+
+/** Rows of the flyers still chosen: `excluded` holds flyer URLs. */
+export const onlyFlyers = (
+  rows: readonly RowData[],
+  excluded: ReadonlySet<string>
+): RowData[] =>
+  excluded.size === 0
+    ? [...rows]
+    : rows.filter((r) => !excluded.has(r.flyerUrl));

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  flyerLabel,
   groupByFlyer,
   groupCountsLabel,
   hasItem,
@@ -244,5 +245,24 @@ describe("retailersIn / groupCountsLabel", () => {
     expect(groupCountsLabel(3, 1)).toBe("3 prodotti · 1 acquistato");
     expect(groupCountsLabel(1, 0)).toBe("1 prodotto");
     expect(groupCountsLabel(2, 2)).toBe("2 prodotti · 2 acquistati");
+  });
+});
+
+describe("flyer names", () => {
+  test("a flyer reads 'Conad · BIS', or just the retailer without a name", () => {
+    expect(flyerLabel("Conad", "BIS")).toBe("Conad · BIS");
+    expect(flyerLabel("Conad", undefined)).toBe("Conad");
+  });
+
+  test("saved products keep the flyer's name and cover; groups show them", () => {
+    const saved = item({
+      flyerTitle: "BIS",
+      flyerImage: "https://img/cover.webp",
+    });
+    const [back] = parseShoppingList(JSON.stringify([saved]));
+    expect(back).toEqual(saved);
+    expect(groupByFlyer([saved], "asc")[0]).toMatchObject({
+      flyerTitle: "BIS",
+    });
   });
 });

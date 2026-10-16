@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { filterRows, sortRows, type ResultSort } from "./results";
+import { filterRows, onlyFlyers, sortRows, type ResultSort } from "./results";
 import type { RowData } from "./shopping";
 
 const row = (productName: string, over: Partial<RowData> = {}): RowData => ({
@@ -56,5 +56,13 @@ describe("filterRows", () => {
 
   test("expired rows can be hidden", () => {
     expect(names(filterRows(rows, "", true, today))).toEqual(["Caffè Borbone"]);
+  });
+});
+
+describe("onlyFlyers", () => {
+  test("drops the rows of excluded flyers; nothing excluded keeps them all", () => {
+    const rows = [row("A", { flyerUrl: "u1" }), row("B", { flyerUrl: "u2" })];
+    expect(names(onlyFlyers(rows, new Set(["u1"])))).toEqual(["B"]);
+    expect(onlyFlyers(rows, new Set())).toEqual(rows);
   });
 });

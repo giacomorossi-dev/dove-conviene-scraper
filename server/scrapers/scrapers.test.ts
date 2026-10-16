@@ -27,6 +27,18 @@ describe("parseFlyerCards", async () => {
       expect(c.category).toBe(category);
     }
   });
+
+  test("reads each flyer's own name, validity and, when near a store, distance", () => {
+    for (const c of withUrl) {
+      expect(c.title).toBeTruthy();
+      expect(c.validity).toBeTruthy();
+      // Flyers with no store nearby (e.g. online shops) have no distance.
+      if (c.distance) expect(c.distance).toMatch(/^\d+([.,]\d+)? ?(m|km)$/);
+    }
+    expect(withUrl.filter((c) => c.distance).length).toBeGreaterThan(
+      withUrl.length / 2
+    );
+  });
 });
 
 describe("parseFlyerData (fixture)", async () => {

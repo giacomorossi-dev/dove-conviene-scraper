@@ -37,7 +37,7 @@ import {
   type ResultSort,
   type ResultSortKey,
 } from "@/lib/results";
-import { isExpired, itemKey, type RowData } from "@/lib/shopping";
+import { flyerLabel, isExpired, itemKey, type RowData } from "@/lib/shopping";
 import { cn } from "@/lib/utils";
 import CartButton from "./CartButton";
 
@@ -97,20 +97,35 @@ const SortHeader = ({
   </button>
 );
 
-const FlyerLink = ({ r }: { r: RowData }) =>
-  r.flyerUrl ? (
+/** The flyer a product is in: its cover, "Conad · BIS", a link to it. */
+const FlyerLink = ({ r }: { r: RowData }) => {
+  const name = flyerLabel(r.flyerName, r.flyerTitle);
+  const cover = r.flyerImage && (
+    <img
+      src={r.flyerImage}
+      alt=""
+      loading="lazy"
+      className="h-8 w-6 shrink-0 rounded-sm bg-muted object-cover object-top"
+    />
+  );
+  return r.flyerUrl ? (
     <a
       href={r.flyerUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 hover:underline"
+      className="inline-flex items-center gap-1.5 hover:underline"
     >
-      {r.flyerName}
-      <ExternalLink className="w-3 h-3" />
+      {cover}
+      {name}
+      <ExternalLink className="w-3 h-3 shrink-0" />
     </a>
   ) : (
-    <span>{r.flyerName}</span>
+    <span className="inline-flex items-center gap-1.5">
+      {cover}
+      {name}
+    </span>
   );
+};
 
 const ResultsTable = ({ rows, isInCart, onToggleCart }: Props) => {
   const [sort, setSort] = useState<ResultSort>({

@@ -14,6 +14,9 @@ export interface RowData {
   validUntil: string | null;
   /** For the logo; missing in products saved before it existed. */
   retailerSlug?: string;
+  /** The flyer's own name ("BIS") and cover; missing in older products. */
+  flyerTitle?: string;
+  flyerImage?: string;
 }
 
 export interface ShoppingItem extends RowData {
@@ -28,6 +31,7 @@ export interface FlyerGroup {
   flyerName: string;
   validUntil: string | null;
   retailerSlug?: string;
+  flyerTitle?: string;
   /** To buy first, then purchased; each in the order they were added. */
   items: ShoppingItem[];
   purchased: number;
@@ -75,6 +79,8 @@ function toItem(v: unknown, fallbackTime: number): ShoppingItem | null {
     ...(typeof v.retailerSlug === "string" && {
       retailerSlug: v.retailerSlug,
     }),
+    ...(typeof v.flyerTitle === "string" && { flyerTitle: v.flyerTitle }),
+    ...(typeof v.flyerImage === "string" && { flyerImage: v.flyerImage }),
     addedAt: typeof v.addedAt === "number" ? v.addedAt : fallbackTime,
     purchased: v.purchased === true,
   };
@@ -231,6 +237,8 @@ export function groupByFlyer(
     if (item.purchased) group.purchased++;
     if (!group.retailerSlug && item.retailerSlug)
       group.retailerSlug = item.retailerSlug;
+    if (!group.flyerTitle && item.flyerTitle)
+      group.flyerTitle = item.flyerTitle;
   }
   const sign = sort === "asc" ? 1 : -1;
   const byName = (a: FlyerGroup, b: FlyerGroup) =>
@@ -265,3 +273,7 @@ export const groupCountsLabel = (total: number, purchased: number): string =>
       ? ` · ${purchased} acquistat${purchased === 1 ? "o" : "i"}`
       : ""
   }`;
+
+/** "Conad · BIS"; just the retailer when the flyer's name isn't known. */
+export const flyerLabel = (retailer: string, title?: string): string =>
+  title ? `${retailer} · ${title}` : retailer;

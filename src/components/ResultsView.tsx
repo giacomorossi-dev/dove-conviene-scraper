@@ -1,6 +1,6 @@
 // The results page: the active preset, then what the search found and how
 // the search is going.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ListChecks, Plus, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import type { Preset } from "@/lib/presets";
+import { onlyFlyers } from "@/lib/results";
 import { progress, type SearchState } from "@/lib/search";
 import type { RowData } from "@/lib/shopping";
 import type { Retailer } from "@shared/types";
+import FlyerStrip from "./FlyerStrip";
 import PresetSummary from "./PresetSummary";
 import ResultsTable from "./ResultsTable";
 
@@ -150,10 +152,28 @@ const ResultsView = ({
           flyerUrl: flyer.url ?? "",
           validUntil: flyer.validUntil ?? null,
           ...(flyer.slug && { retailerSlug: flyer.slug }),
+          ...(flyer.title && { flyerTitle: flyer.title }),
+          ...(flyer.imageUrl && { flyerImage: flyer.imageUrl }),
         }))
       ),
     [search.results]
   );
+
+  // Flyers left out of the results: each new search starts with all of them.
+  const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  const [excludedFor, setExcludedFor] = useState(search.id);
+  if (excludedFor !== search.id) {
+    setExcludedFor(search.id);
+    setExcluded(new Set());
+  }
+  const shownRows = useMemo(() => onlyFlyers(rows, excluded), [rows, excluded]);
+  const toggleFlyer = (url: string, included: boolean) =>
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      if (included) next.delete(url);
+      else next.add(url);
+      return next;
+    });
 
   if (!preset)
     return (
@@ -198,10 +218,18 @@ const ResultsView = ({
             <SearchStatus search={search} rows={rows.length} />
           </div>
           <SearchWarnings search={search} />
+          {search.results.length > 0 && (
+            <FlyerStrip
+              flyers={search.results}
+              excluded={excluded}
+              onToggle={toggleFlyer}
+              onAll={() => setExcluded(new Set())}
+            />
+          )}
           {/* A new search starts from fresh filters. */}
           <ResultsTable
             key={search.id}
-            rows={rows}
+            rows={shownRows}
             isInCart={isInCart}
             onToggleCart={onToggleCart}
           />
