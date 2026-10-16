@@ -1,6 +1,7 @@
-// The results page: the active preset, then what the search found.
+// The results page: the active preset, then what the search found and how
+// the search is going.
 import { useMemo } from "react";
-import { ListChecks, Plus } from "lucide-react";
+import { ListChecks, Plus, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,26 +12,94 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { RowData } from "@/lib/shopping";
+import { Spinner } from "@/components/ui/spinner";
 import type { Preset } from "@/lib/presets";
-import type { Flyer, Retailer } from "@shared/types";
+import type { SearchState } from "@/lib/search";
+import type { RowData } from "@/lib/shopping";
+import type { Retailer } from "@shared/types";
 import PresetSummary from "./PresetSummary";
 import ResultsTable from "./ResultsTable";
 
 interface Props {
   preset: Preset | null;
   bySlug: ReadonlyMap<string, Retailer>;
-  results: Flyer[];
+  catalogReady: boolean;
+  search: SearchState & { id: number };
   isInCart: (row: RowData) => boolean;
   onToggleCart: (row: RowData) => void;
   onRequestCreate: () => void;
   onRequestEdit: () => void;
 }
 
+const flyers = (n: number) => `${n} volantin${n === 1 ? "o" : "i"}`;
+const read = (n: number) => `${flyers(n)} lett${n === 1 ? "o" : "i"}`;
+
+/** One line on how the search went: running, empty, cancelled, failed. */
+function SearchStatus({ search, rows }: { search: SearchState; rows: number }) {
+  const { phase, flyersRead } = search;
+  if (phase === "idle")
+    return (
+      <p className="text-sm text-muted-foreground">
+        Premi Cerca per leggere i volantini delle insegne del preset.
+      </p>
+    );
+  if (phase === "running")
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Spinner /> Ricerca in corso… {read(flyersRead)}
+      </p>
+    );
+  if (phase === "failed")
+    return (
+      <p className="flex items-center gap-2 text-sm text-destructive">
+        <TriangleAlert className="size-4 shrink-0" />
+        La ricerca non è riuscita: {search.errors.at(-1)}
+      </p>
+    );
+  if (phase === "cancelled")
+    return (
+      <p className="text-sm text-muted-foreground">
+        Ricerca annullata: {read(flyersRead)}.
+      </p>
+    );
+  return (
+    <p className="text-sm text-muted-foreground">
+      {rows > 0
+        ? `${read(flyersRead)}.`
+        : flyersRead > 0
+          ? `Nessun prodotto trovato in ${flyers(flyersRead)}.`
+          : "Nessun volantino di queste insegne vicino alla località scelta."}
+    </p>
+  );
+}
+
+/** Flyers dc didn't give and other problems: the search went on anyway. */
+function SearchWarnings({ search }: { search: SearchState }) {
+  const { unread, errors, phase } = search;
+  // A failed search already shows its last error.
+  const shown = phase === "failed" ? errors.slice(0, -1) : errors;
+  if (unread.length === 0 && shown.length === 0) return null;
+  const one = unread.length === 1;
+  return (
+    <div className="grid gap-1 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      {unread.length > 0 && (
+        <p>
+          {unread.length} {one ? "volantino non letto" : "volantini non letti"}{" "}
+          (dc non {one ? "l'ha dato" : "li ha dati"}): {unread.join(", ")}.
+        </p>
+      )}
+      {shown.map((e, i) => (
+        <p key={i}>{e}</p>
+      ))}
+    </div>
+  );
+}
+
 const ResultsView = ({
   preset,
   bySlug,
-  results,
+  catalogReady,
+  search,
   isInCart,
   onToggleCart,
   onRequestCreate,
@@ -38,7 +107,7 @@ const ResultsView = ({
 }: Props) => {
   const rows = useMemo<RowData[]>(
     () =>
-      results.flatMap((flyer) =>
+      search.results.flatMap((flyer) =>
         (flyer.products ?? []).map((p) => ({
           productName: p.name,
           productImage: p.imageUrl,
@@ -49,7 +118,7 @@ const ResultsView = ({
           ...(flyer.slug && { retailerSlug: flyer.slug }),
         }))
       ),
-    [results]
+    [search.results]
   );
 
   if (!preset)
@@ -74,13 +143,24 @@ const ResultsView = ({
 
   return (
     <div className="space-y-4">
-      <PresetSummary preset={preset} bySlug={bySlug} onEdit={onRequestEdit} />
+      <PresetSummary
+        preset={preset}
+        bySlug={bySlug}
+        catalogReady={catalogReady}
+        onEdit={onRequestEdit}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Risultati</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-3">
+          <div aria-live="polite">
+            <SearchStatus search={search} rows={rows.length} />
+          </div>
+          <SearchWarnings search={search} />
+          {/* A new search starts from fresh filters. */}
           <ResultsTable
+            key={search.id}
             rows={rows}
             isInCart={isInCart}
             onToggleCart={onToggleCart}

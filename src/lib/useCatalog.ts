@@ -14,7 +14,14 @@ export interface CatalogState {
   bySlug: ReadonlyMap<string, Retailer>;
   /** Starts an update, or retries a failed first build. */
   update: () => void;
+  /** Why the list couldn't be read from the server, if it couldn't. */
+  error: string | null;
+  /** Reads status and list again (not a new build). */
+  retry: () => void;
 }
+
+const UNREADABLE =
+  "Non riesco a leggere l'elenco delle insegne dal server: è acceso?";
 
 /**
  * The local national retailer list and its builds (the first one or an
@@ -23,12 +30,17 @@ export interface CatalogState {
 export function useCatalog(): CatalogState {
   const [status, setStatus] = useState<CatalogStatus | null>(null);
   const [retailers, setRetailers] = useState<Retailer[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     fetchJson<CatalogStatus>("/api/retailers/status")
-      .then(setStatus)
-      .catch(() => {});
-  }, []);
+      .then((s) => {
+        setStatus(s);
+        setError(null);
+      })
+      .catch(() => setError(UNREADABLE));
+  }, [attempt]);
 
   // Follow a running build.
   const building = status?.building ?? false;
@@ -48,8 +60,8 @@ export function useCatalog(): CatalogState {
     if (!updatedAt) return;
     fetchJson<Retailer[]>("/api/retailers")
       .then(setRetailers)
-      .catch(() => {});
-  }, [updatedAt]);
+      .catch(() => setError(UNREADABLE));
+  }, [updatedAt, attempt]);
 
   const bySlug = useMemo(
     () => new Map(retailers.map((r) => [r.slug, r])),
@@ -62,5 +74,10 @@ export function useCatalog(): CatalogState {
       .catch(() => {});
   };
 
-  return { status, retailers, bySlug, update };
+  const retry = () => {
+    setError(null);
+    setAttempt((a) => a + 1);
+  };
+
+  return { status, retailers, bySlug, update, error, retry };
 }

@@ -9,9 +9,11 @@ interface Props {
   activeId: string | null;
   bySlug: ReadonlyMap<string, Retailer>;
   onSelectPreset: (id: string) => void;
-  loading: boolean;
-  canSearch: boolean;
+  running: boolean;
+  /** Why Cerca is disabled; null when it can search. */
+  blocker: string | null;
   onSearch: () => void;
+  onCancel: () => void;
 }
 
 const Bottombar = ({
@@ -19,9 +21,10 @@ const Bottombar = ({
   activeId,
   bySlug,
   onSelectPreset,
-  loading,
-  canSearch,
+  running,
+  blocker,
   onSearch,
+  onCancel,
 }: Props) => (
   <div
     className="fixed bottom-0 inset-x-0 z-40 bg-background border-t"
@@ -37,10 +40,25 @@ const Bottombar = ({
         />
       )}
       <div className="flex-1" />
-      <Button onClick={onSearch} disabled={!canSearch || loading}>
-        <span>Cerca</span>
-        {loading && <Spinner />}
-      </Button>
+      {blocker && !running && (
+        <span className="min-w-0 truncate text-xs text-muted-foreground">
+          {blocker}
+        </span>
+      )}
+      {running ? (
+        <>
+          {/* Beside the button: inside it, its "Loading" label would become
+              part of the button's name. */}
+          <Spinner />
+          <Button variant="outline" onClick={onCancel}>
+            Annulla
+          </Button>
+        </>
+      ) : (
+        <Button onClick={onSearch} disabled={blocker !== null}>
+          Cerca
+        </Button>
+      )}
     </div>
   </div>
 );

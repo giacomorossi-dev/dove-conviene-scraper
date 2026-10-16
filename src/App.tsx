@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import type {
-  Flyer as FlyerI,
-  Place,
-  ScrapeMessage,
-  ScrapeRequest,
-} from "@shared/types";
+import type { Place } from "@shared/types";
 import ResultsView from "./components/ResultsView";
 import PresetsView from "./components/PresetsView";
 import PresetEditorDialog, {
@@ -23,6 +18,7 @@ import {
 } from "./lib/presets";
 import { usePresets } from "./lib/usePresets";
 import { useCatalog } from "./lib/useCatalog";
+import { useSearch } from "./lib/useSearch";
 import { useShoppingList } from "./lib/useShoppingList";
 import { DEFAULT_PLACE, loadPlace, savePlace } from "./lib/places";
 import { knownRetailers, toSelection } from "./lib/retailers";
@@ -35,8 +31,7 @@ const App = () => {
   const [place, setPlace] = useState<Place>(
     () => loadPlace() ?? loadLegacyActivePlace() ?? DEFAULT_PLACE
   );
-  const [results, setResults] = useState<FlyerI[]>([]);
-  const [loading, setLoading] = useState(false);
+  const search = useSearch();
   const [view, setView] = useState<View>("main");
 
   // The editor keeps its last content while it closes (no title flicker).
@@ -56,58 +51,42 @@ const App = () => {
   const searchRetailers = active
     ? knownRetailers(active.retailers, catalog.bySlug)
     : [];
-  const canSearch =
-    !!active && searchRetailers.length > 0 && active.products.length > 0;
+  const catalogReady = catalog.retailers.length > 0;
+  /** Why the active preset can't be searched yet; null when it can. */
+  const searchBlocker = !active
+    ? "Scegli un preset"
+    : catalog.error
+      ? "Elenco delle insegne non disponibile"
+      : !catalogReady
+        ? catalog.status?.building
+          ? "Elenco delle insegne in preparazione"
+          : "Elenco delle insegne non ancora caricato"
+        : searchRetailers.length === 0
+          ? "Il preset non ha insegne"
+          : active.products.length === 0
+            ? "Il preset non ha prodotti"
+            : null;
 
-  const onSearch = async () => {
-    if (!active || !canSearch) return;
-    setLoading(true);
-    setResults([]);
-    try {
-      const request: ScrapeRequest = {
-        place,
-        flyers: searchRetailers.map(toSelection),
-        products: active.products,
-      };
-      const res = await fetch("/api/scraper", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-      });
-      if (!res.ok || !res.body) return;
+  const onSearch = () => {
+    if (!active || searchBlocker) return;
+    search.start({
+      place,
+      flyers: searchRetailers.map(toSelection),
+      products: active.products,
+    });
+  };
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const msg = JSON.parse(line) as ScrapeMessage;
-            if ("flyer" in msg) {
-              const { flyer } = msg;
-              setResults((prev) => [...prev, flyer]);
-            }
-          } catch {
-            /* skip malformed line */
-          }
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
+  // Results belong to a place: another place means another search.
+  const onPlaceChange = (next: Place) => {
+    setPlace(next);
+    search.reset();
   };
 
   // ---- preset handlers ----
 
   const onSelectPreset = (id: string) => {
     setActiveId(id);
-    setResults([]);
+    search.reset();
   };
 
   const draftOf = (id: string): PresetDraft | null => {
@@ -141,17 +120,19 @@ const App = () => {
   };
 
   const onSaveEditor = (draft: PresetDraft) => {
-    if (editor.mode === "edit" && editor.editingId)
+    if (editor.mode === "edit" && editor.editingId) {
       update(editor.editingId, draft);
-    else {
+      // The results no longer match the edited preset.
+      if (editor.editingId === activeId) search.reset();
+    } else {
       create(draft);
-      setResults([]);
+      search.reset();
     }
   };
 
   const onConfirmDeletePreset = () => {
     if (!deletePresetId) return;
-    if (deletePresetId === activeId) setResults([]);
+    if (deletePresetId === activeId) search.reset();
     remove(deletePresetId);
     setDeletePresetId(null);
   };
@@ -162,7 +143,7 @@ const App = () => {
         view={view}
         onChangeView={setView}
         place={place}
-        onPlaceChange={setPlace}
+        onPlaceChange={onPlaceChange}
         shoppingCount={shopping.toBuy}
       />
       <main className="pt-6 pb-24">
@@ -190,7 +171,8 @@ const App = () => {
             <ResultsView
               preset={active}
               bySlug={catalog.bySlug}
-              results={results}
+              catalogReady={catalogReady}
+              search={search}
               isInCart={shopping.has}
               onToggleCart={shopping.toggle}
               onRequestCreate={openCreate}
@@ -208,9 +190,10 @@ const App = () => {
           activeId={activeId}
           bySlug={catalog.bySlug}
           onSelectPreset={onSelectPreset}
-          loading={loading}
-          canSearch={canSearch}
+          running={search.phase === "running"}
+          blocker={searchBlocker}
           onSearch={onSearch}
+          onCancel={search.cancel}
         />
       )}
 

@@ -5,6 +5,23 @@ import {
   ChevronsUpDown,
   ExternalLink,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -13,10 +30,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import CartButton from "./CartButton";
-import { isExpired, type RowData } from "@/lib/shopping";
+import { formatDate, formatPrice } from "@/lib/format";
+import {
+  filterRows,
+  sortRows,
+  type ResultSort,
+  type ResultSortKey,
+} from "@/lib/results";
+import { isExpired, itemKey, type RowData } from "@/lib/shopping";
 import { cn } from "@/lib/utils";
+import CartButton from "./CartButton";
 
 interface Props {
   rows: RowData[];
@@ -24,33 +47,24 @@ interface Props {
   onToggleCart: (row: RowData) => void;
 }
 
-type SortKey = "productName" | "flyerName" | "validUntil" | "price";
-type SortDir = "asc" | "desc";
+const price = (r: RowData) => (r.price === null ? "—" : formatPrice(r.price));
+const date = (r: RowData) => (r.validUntil ? formatDate(r.validUntil) : "—");
 
-const formatPrice = (n: number | null): string =>
-  n === null ? "—" : `€ ${n.toFixed(2).replace(".", ",")}`;
-
-const formatDate = (iso: string | null): string => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
-const dateValue = (iso: string | null): number =>
-  iso
-    ? new Date(iso).getTime() || Number.MAX_SAFE_INTEGER
-    : Number.MAX_SAFE_INTEGER;
+/** The phone layout has no column headers: the order is picked here. */
+const SORT_ITEMS: { label: string; value: string }[] = [
+  { label: "Scadenza più vicina", value: "validUntil:asc" },
+  { label: "Scadenza più lontana", value: "validUntil:desc" },
+  { label: "Prezzo più basso", value: "price:asc" },
+  { label: "Prezzo più alto", value: "price:desc" },
+  { label: "Prodotto (A-Z)", value: "productName:asc" },
+  { label: "Volantino (A-Z)", value: "flyerName:asc" },
+];
 
 interface SortHeaderProps {
-  sortKey: SortKey;
+  sortKey: ResultSortKey;
   label: string;
-  sort: { key: SortKey; dir: SortDir };
-  onSort: (key: SortKey) => void;
+  sort: ResultSort;
+  onSort: (key: ResultSortKey) => void;
   className?: string;
 }
 
@@ -83,62 +97,75 @@ const SortHeader = ({
   </button>
 );
 
+const FlyerLink = ({ r }: { r: RowData }) =>
+  r.flyerUrl ? (
+    <a
+      href={r.flyerUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 hover:underline"
+    >
+      {r.flyerName}
+      <ExternalLink className="w-3 h-3" />
+    </a>
+  ) : (
+    <span>{r.flyerName}</span>
+  );
+
 const ResultsTable = ({ rows, isInCart, onToggleCart }: Props) => {
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
+  const [sort, setSort] = useState<ResultSort>({
     key: "validUntil",
     dir: "asc",
   });
   const [search, setSearch] = useState("");
   const [hideExpired, setHideExpired] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (hideExpired && isExpired(r.validUntil)) return false;
-      if (!q) return true;
-      return (
-        r.productName.toLowerCase().includes(q) ||
-        r.flyerName.toLowerCase().includes(q)
-      );
-    });
-  }, [rows, search, hideExpired]);
+  // Stable keys, so re-sorting moves rows instead of reloading their images.
+  const keys = useMemo(() => {
+    const seen = new Map<string, number>();
+    return new Map(
+      rows.map((r) => {
+        const key = itemKey(r);
+        const n = seen.get(key) ?? 0;
+        seen.set(key, n + 1);
+        return [r, `${key}#${n}`] as const;
+      })
+    );
+  }, [rows]);
 
-  const sorted = useMemo(() => {
-    const arr = [...filtered];
-    arr.sort((a, b) => {
-      const sign = sort.dir === "asc" ? 1 : -1;
-      switch (sort.key) {
-        case "productName":
-          return sign * a.productName.localeCompare(b.productName, "it");
-        case "flyerName":
-          return sign * a.flyerName.localeCompare(b.flyerName, "it");
-        case "validUntil":
-          return sign * (dateValue(a.validUntil) - dateValue(b.validUntil));
-        case "price": {
-          const av = a.price ?? Number.MAX_SAFE_INTEGER;
-          const bv = b.price ?? Number.MAX_SAFE_INTEGER;
-          return sign * (av - bv);
-        }
-      }
-    });
-    return arr;
-  }, [filtered, sort]);
+  const sorted = useMemo(
+    () => sortRows(filterRows(rows, search, hideExpired), sort),
+    [rows, search, hideExpired, sort]
+  );
 
-  const toggleSort = (key: SortKey) => {
+  const toggleSort = (key: ResultSortKey) =>
     setSort((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
         : { key, dir: "asc" }
     );
-  };
 
-  const filterBar =
-    rows.length > 0 ? (
-      <div className="flex flex-wrap items-center gap-3 mb-3">
+  const ariaSort = (key: ResultSortKey) =>
+    sort.key === key
+      ? sort.dir === "asc"
+        ? "ascending"
+        : "descending"
+      : "none";
+
+  if (rows.length === 0) return null;
+
+  const count = `${sorted.length} prodott${sorted.length === 1 ? "o" : "i"}${
+    sorted.length !== rows.length ? ` di ${rows.length}` : ""
+  }`;
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Input
           placeholder="Cerca prodotto o volantino..."
+          aria-label="Filtra i risultati"
           value={search}
-          onInput={(e) => setSearch(e.currentTarget.value)}
+          onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
         <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -150,121 +177,171 @@ const ResultsTable = ({ rows, isInCart, onToggleCart }: Props) => {
           />
           Nascondi scaduti
         </label>
-        <span className="text-xs text-muted-foreground ml-auto">
-          {sorted.length}
-          {sorted.length !== rows.length && ` di ${rows.length}`}
+        <Select
+          items={SORT_ITEMS}
+          value={`${sort.key}:${sort.dir}`}
+          onValueChange={(v) => {
+            if (!v) return;
+            const [key, dir] = v.split(":");
+            setSort({
+              key: key as ResultSortKey,
+              dir: dir as ResultSort["dir"],
+            });
+          }}
+        >
+          <SelectTrigger className="w-52 sm:hidden" aria-label="Ordina">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {SORT_ITEMS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <span
+          className="text-xs text-muted-foreground ml-auto"
+          aria-live="polite"
+        >
+          {count}
         </span>
       </div>
-    ) : null;
 
-  if (rows.length === 0) {
-    return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
-        Nessun prodotto da visualizzare
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {filterBar}
       {sorted.length === 0 ? (
         <div className="py-10 text-center text-sm text-muted-foreground">
           Nessun risultato per i filtri attivi
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-20"></TableHead>
-              <TableHead>
-                <SortHeader
-                  sortKey="productName"
-                  label="Prodotto"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-              </TableHead>
-              <TableHead>
-                <SortHeader
-                  sortKey="flyerName"
-                  label="Volantino"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-              </TableHead>
-              <TableHead className="w-32">
-                <SortHeader
-                  sortKey="validUntil"
-                  label="Scadenza"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-              </TableHead>
-              <TableHead className="w-28 text-right">
-                <SortHeader
-                  sortKey="price"
-                  label="Prezzo"
-                  sort={sort}
-                  onSort={toggleSort}
-                  className="ml-auto"
-                />
-              </TableHead>
-              <TableHead className="w-12">
-                <span className="sr-only">Lista della spesa</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.map((r, i) => {
-              const expired = isExpired(r.validUntil);
-              return (
-                <TableRow key={i} className={cn(expired && "opacity-50")}>
-                  <TableCell>
-                    {r.productImage ? (
-                      <img
-                        src={r.productImage}
-                        alt={r.productName}
-                        className="w-16 h-16 object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded bg-muted" />
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{r.productName}</TableCell>
-                  <TableCell>
-                    {r.flyerUrl ? (
-                      <a
-                        href={r.flyerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 hover:underline"
-                      >
-                        {r.flyerName}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <span>{r.flyerName}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(r.validUntil)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatPrice(r.price)}
-                  </TableCell>
-                  <TableCell>
+        <>
+          {/* Phones: one card per product, price and cart always in view. */}
+          <ul className="grid gap-2 sm:hidden">
+            {sorted.map((r) => (
+              <li key={keys.get(r)}>
+                <Item
+                  size="sm"
+                  variant="outline"
+                  className={cn(isExpired(r.validUntil) && "opacity-50")}
+                >
+                  {r.productImage && (
+                    <ItemMedia variant="image">
+                      <img src={r.productImage} alt="" loading="lazy" />
+                    </ItemMedia>
+                  )}
+                  <ItemContent>
+                    <ItemTitle>{r.productName}</ItemTitle>
+                    <ItemDescription className="flex flex-wrap items-center gap-x-2">
+                      <FlyerLink r={r} />
+                      <span>scade {date(r)}</span>
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <span className="font-medium whitespace-nowrap">
+                      {price(r)}
+                    </span>
                     <CartButton
                       inList={isInCart(r)}
                       onToggle={() => onToggleCart(r)}
                     />
-                  </TableCell>
+                  </ItemActions>
+                </Item>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-20"></TableHead>
+                  <TableHead aria-sort={ariaSort("productName")}>
+                    <SortHeader
+                      sortKey="productName"
+                      label="Prodotto"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                  </TableHead>
+                  <TableHead aria-sort={ariaSort("flyerName")}>
+                    <SortHeader
+                      sortKey="flyerName"
+                      label="Volantino"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="w-32"
+                    aria-sort={ariaSort("validUntil")}
+                  >
+                    <SortHeader
+                      sortKey="validUntil"
+                      label="Scadenza"
+                      sort={sort}
+                      onSort={toggleSort}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="w-28 text-right"
+                    aria-sort={ariaSort("price")}
+                  >
+                    <SortHeader
+                      sortKey="price"
+                      label="Prezzo"
+                      sort={sort}
+                      onSort={toggleSort}
+                      className="ml-auto"
+                    />
+                  </TableHead>
+                  <TableHead className="w-12">
+                    <span className="sr-only">Lista della spesa</span>
+                  </TableHead>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {sorted.map((r) => (
+                  <TableRow
+                    key={keys.get(r)}
+                    className={cn(isExpired(r.validUntil) && "opacity-50")}
+                  >
+                    <TableCell>
+                      {r.productImage ? (
+                        <img
+                          src={r.productImage}
+                          alt=""
+                          className="w-16 h-16 object-contain"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded bg-muted" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium whitespace-normal">
+                      {r.productName}
+                    </TableCell>
+                    <TableCell>
+                      <FlyerLink r={r} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {date(r)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {price(r)}
+                    </TableCell>
+                    <TableCell>
+                      <CartButton
+                        inList={isInCart(r)}
+                        onToggle={() => onToggleCart(r)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

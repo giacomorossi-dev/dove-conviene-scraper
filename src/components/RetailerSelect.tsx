@@ -102,7 +102,7 @@ function CatalogInfo({
 }
 
 const RetailerSelect = ({ value, onChange, catalog }: Props) => {
-  const { status, retailers, bySlug, update } = catalog;
+  const { status, retailers, bySlug, update, error, retry } = catalog;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [onlySelected, setOnlySelected] = useState(false);
@@ -149,8 +149,23 @@ const RetailerSelect = ({ value, onChange, catalog }: Props) => {
     return () => observer.disconnect();
   }, [hasMore, limit]);
 
-  const toggle = (slug: string, checked: boolean) =>
-    onChange(checked ? [...value, slug] : value.filter((s) => s !== slug));
+  const toggle = (slug: string, checked: boolean) => {
+    const next = checked ? [...value, slug] : value.filter((s) => s !== slug);
+    // Unticking the last one leaves "only selected" mode, or the next tick
+    // would suddenly hide every other retailer.
+    if (!next.some((s) => bySlug.has(s))) setOnlySelected(false);
+    onChange(next);
+  };
+
+  if (error)
+    return (
+      <p className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-4 text-sm">
+        {error}
+        <Button size="sm" variant="outline" onClick={retry}>
+          <RefreshCw /> Riprova
+        </Button>
+      </p>
+    );
 
   if (!status)
     return (

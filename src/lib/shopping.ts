@@ -1,5 +1,6 @@
 // The shopping list: products picked from the results, grouped by flyer and
 // saved in the browser. It replaced the named, coloured lists.
+import { parseDay } from "./format";
 
 /** A product row of the results, as the cart saves it. */
 export interface RowData {
@@ -46,12 +47,11 @@ export function isExpired(
   validUntil: string | null,
   now = new Date()
 ): boolean {
-  if (!validUntil) return false;
-  const d = new Date(validUntil);
-  if (isNaN(d.getTime())) return false;
+  const day = validUntil ? parseDay(validUntil) : null;
+  if (!day) return false;
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
-  return d.getTime() < today.getTime();
+  return day.getTime() < today.getTime();
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -189,11 +189,8 @@ export const withoutExpired = (
 export const toBuyCount = (items: readonly ShoppingItem[]): number =>
   items.filter((i) => !i.purchased).length;
 
-const timeOf = (iso: string | null): number | null => {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  return isNaN(t) ? null : t;
-};
+const timeOf = (iso: string | null): number | null =>
+  iso ? (parseDay(iso)?.getTime() ?? null) : null;
 
 /**
  * One group per flyer, by expiry in the chosen direction; undated flyers

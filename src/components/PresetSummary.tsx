@@ -19,17 +19,22 @@ import RetailerLogos from "./RetailerLogos";
 interface Props {
   preset: Preset;
   bySlug: ReadonlyMap<string, Retailer>;
+  /** False while the retailer list isn't loaded: names and logos unknown. */
+  catalogReady: boolean;
   onEdit: () => void;
 }
 
-const PresetSummary = ({ preset, bySlug, onEdit }: Props) => {
+const PresetSummary = ({ preset, bySlug, catalogReady, onEdit }: Props) => {
   const retailers = knownRetailers(preset.retailers, bySlug);
+  const retailerCount = catalogReady
+    ? retailers.length
+    : preset.retailers.length;
   return (
     <Card>
       <CardHeader>
         <CardTitle>{preset.name}</CardTitle>
         <CardDescription>
-          {countsLabel(retailers.length, preset.products.length)}
+          {countsLabel(retailerCount, preset.products.length)}
         </CardDescription>
         <CardAction>
           <Button variant="ghost" size="sm" onClick={onEdit}>
@@ -41,7 +46,11 @@ const PresetSummary = ({ preset, bySlug, onEdit }: Props) => {
         {retailers.length > 0 ? (
           <RetailerLogos retailers={retailers} max={8} />
         ) : (
-          <p className="text-sm text-muted-foreground">Nessuna insegna.</p>
+          <p className="text-sm text-muted-foreground">
+            {catalogReady
+              ? "Nessuna insegna."
+              : "Elenco delle insegne non ancora disponibile."}
+          </p>
         )}
         {preset.products.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">

@@ -13,8 +13,10 @@ const CartButton = ({ inList, onToggle }: Props) => (
     type="button"
     variant="ghost"
     size="icon-sm"
+    // One name and a pressed state: "Nella lista della spesa, premuto".
     aria-pressed={inList}
-    aria-label={
+    aria-label="Nella lista della spesa"
+    title={
       inList
         ? "Togli dalla lista della spesa"
         : "Aggiungi alla lista della spesa"
